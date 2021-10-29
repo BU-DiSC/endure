@@ -1,0 +1,126 @@
+app:
+    app_name: "Endure"
+    app_logging_level: "INFO"
+
+    ROOT_DIR: "endure"
+    DATA_DIR: "/Users/ndhuynh/sandbox/data"
+
+    BUILDER_PATH: "../build/db_builder"
+    EXECUTION_PATH: "../build/db_runner"
+    DATABASE_PATH: "/Users/ndhuynh/sandbox/db"
+    KEY_FILE_PATH: "/Users/ndhuynh/sandbox/keys.bin"
+
+lsm_tree_config: 
+    N: 100000000
+    phi: 1          
+    s: 0.00         # Average range query selectivity
+    B: 4            # Number of entries that fit in a disk page
+    E: 8192         # Size of data entries in bits
+    M: 8589934592   # Total memory budget of 1 GiB
+    is_leveling_policy: True  # Leveling or Tiering policy
+
+expected_workloads:
+    - z0: 0.25    # Empty point query percentage  
+      z1: 0.25    # Non-empty point query percentage
+      q: 0.25     # Range query percentage
+      w: 0.25     # Write query percentage
+
+    # - z0: 0.97
+    #   z1: 0.01
+    #   q: 0.01
+    #   w: 0.01
+
+    # - z0: 0.01
+    #   z1: 0.97
+    #   q: 0.01
+    #   w: 0.01
+
+    # - z0: 0.01
+    #   z1: 0.01
+    #   q: 0.97
+    #   w: 0.01
+
+    # - z0: 0.01
+    #   z1: 0.01
+    #   q: 0.01
+    #   w: 0.97
+
+    # - z0: 0.49
+    #   z1: 0.49
+    #   q: 0.01
+    #   w: 0.01
+
+    # - z0: 0.49
+    #   z1: 0.01
+    #   q: 0.49
+    #   w: 0.01
+
+    # - z0: 0.49
+    #   z1: 0.01
+    #   q: 0.01
+    #   w: 0.49
+
+    # - z0: 0.01
+    #   z1: 0.49
+    #   q: 0.49
+    #   w: 0.01
+
+    # - z0: 0.01
+    #   z1: 0.49
+    #   q: 0.01
+    #   w: 0.49
+
+    # - z0: 0.01
+    #   z1: 0.01
+    #   q: 0.49
+    #   w: 0.49
+
+    # - z0: 0.33
+    #   z1: 0.33
+    #   q: 0.33
+    #   w: 0.01
+
+    # - z0: 0.33
+    #   z1: 0.33
+    #   q: 0.01
+    #   w: 0.33
+
+    # - z0: 0.33
+    #   z1: 0.01
+    #   q: 0.33
+    #   w: 0.33
+
+    # - z0: 0.01
+    #   z1: 0.33
+    #   q: 0.33
+    #   w: 0.33
+
+
+expected_memory_bits_per_element: [10]
+
+uncertain_workload_config:
+    N: 100000
+    rho_high: 4
+    rho_low: 0
+    rho_step: 0.1
+    filename: "workload_uncertainty_set_rho.dill"
+
+jobs:
+    job_list:
+        # - "create_workload_uncertainty_tunings"
+        # - "sample_uncertain_workloads"
+        - "run_experiments"
+
+experiments:
+    expt_list:
+        # - "experiment_01"
+        # - "experiment_02"
+        - "experiment_03"
+        # - "experiment_04"
+        # - "experiment_05"
+
+experiment_01:
+
+experiment_02:
+    
+experiment_03:
