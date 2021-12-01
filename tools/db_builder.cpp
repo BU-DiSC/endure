@@ -199,7 +199,8 @@ void build_db(environment & env)
     rocksdb_opt.error_if_exists = true;
     rocksdb_opt.compaction_style = rocksdb::kCompactionStyleNone;
     rocksdb_opt.compression = rocksdb::kNoCompression;
-    rocksdb_opt.level0_file_num_compaction_trigger = -1; // Bulk loading so we manually trigger compactions when need be
+    // Bulk loading so we manually trigger compactions when need be
+    rocksdb_opt.level0_file_num_compaction_trigger = -1;
     rocksdb_opt.IncreaseParallelism(env.parallelism);
 
     rocksdb_opt.disable_auto_compactions = true;
@@ -212,13 +213,14 @@ void build_db(environment & env)
     DataGenerator *gen;
     if (env.use_key_file)
     {
-        gen = new KeyFileGenerator(env.key_file, 2 * env.N, env.seed) ;
+        gen = new KeyFileGenerator(env.key_file, 2 * env.N, env.seed, "uniform");
     }
     else
     {
         gen = new RandomGenerator(env.seed);
     }
-    FluidLSMBulkLoader *fluid_compactor = new FluidLSMBulkLoader(*gen, fluid_opt, rocksdb_opt, env.early_fill_stop);
+    FluidLSMBulkLoader *fluid_compactor = new FluidLSMBulkLoader(
+            *gen, fluid_opt, rocksdb_opt, env.early_fill_stop);
     rocksdb_opt.listeners.emplace_back(fluid_compactor);
 
     rocksdb::BlockBasedTableOptions table_options;
@@ -239,7 +241,8 @@ void build_db(environment & env)
                 FluidLSMBulkLoader::estimate_levels(env.N, env.T, env.E, env.B) + 1));
     }
     table_options.no_block_cache = true;
-    rocksdb_opt.table_factory.reset(rocksdb::NewBlockBasedTableFactory(table_options));
+    rocksdb_opt.table_factory.reset(
+            rocksdb::NewBlockBasedTableFactory(table_options));
 
     rocksdb::DB *db = nullptr;
     rocksdb::Status status = rocksdb::DB::Open(rocksdb_opt, env.db_path, &db);

@@ -99,6 +99,6 @@ int main(int argc, char * argv[])
         spdlog::warn("Error occured during writing");
         return 1;
     }
-    
+
     return 0;
 }

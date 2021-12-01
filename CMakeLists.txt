@@ -149,5 +149,8 @@ target_link_libraries(db_cont_runner tmpdb tools)
 add_executable(key_gen ${CMAKE_SOURCE_DIR}/tools/key_gen.cpp)
 target_link_libraries(key_gen tmpdb tools)
 
+add_executable(test ${CMAKE_SOURCE_DIR}/tools/test.cpp)
+target_link_libraries(test tmpdb tools)
+
 # add_executable(compact_files_example ${CMAKE_SOURCE_DIR}/example/compact_files_example.cc)
 # target_link_libraries(compact_files_example tmpdb)

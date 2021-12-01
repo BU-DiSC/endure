@@ -1,129 +1,135 @@
 #include "data_generator.hpp"
+#include "zipf.hpp"
+
+
+Uniform::Uniform(int max)
+{
+    this->dist = std::uniform_int_distribution<int>(0, max);
+}
+
+
+int Uniform::gen(std::mt19937 & engine)
+{
+    return this->dist(engine);
+}
+
+
+Zipf::Zipf(int max)
+{
+    this->dist = opencog::zipf_distribution<int, double>(max);
+}
+
+
+int Zipf::gen(std::mt19937 & engine)
+{
+    return this->dist(engine);
+}
+
 
 RandomGenerator::RandomGenerator(int seed)
 {
     this->seed = seed;
     this->engine.seed(this->seed);
     srand(this->seed);
-    this->dist_left = std::uniform_int_distribution<int>(KEY_BOTTOM, KEY_MIDDLE_LEFT);
-    this->dist_right = std::uniform_int_distribution<int>(KEY_MIDDLE_RIGHT, KEY_DOMAIN);
+    this->dist = std::uniform_int_distribution<int>(0, KEY_DOMAIN);
 }
 
 
-RandomGenerator::RandomGenerator()
+std::pair<std::string, std::string> DataGenerator::gen_kv_pair(size_t kv_size)
 {
-    RandomGenerator(0);
-}
-
-
-std::string RandomGenerator::generate_rnd()
-{
-    if (std::rand() % 2)
-    {
-        return std::to_string(this->dist_left(this->engine));
-    }
-    else
-    {
-        return std::to_string(this->dist_right(this->engine));
-    }
-}
-
-
-std::pair<std::string, std::string> DataGenerator::generate_kv_pair(size_t kv_size)
-{
-    return this->generate_kv_pair(kv_size, "", "");
-}
-
-
-std::pair<std::string, std::string> DataGenerator::generate_kv_pair(
-    size_t kv_size,
-    const std::string key_prefix,
-    const std::string value_prefix)
-{
-    std::string key = this->generate_key(key_prefix);
+    std::string key = this->gen_key();
     assert(key.size() < kv_size && "Requires larger key size");
     size_t value_size = kv_size - key.size();
-    std::string value = this->generate_val(value_size, value_prefix);
+    std::string value = this->gen_val(value_size);
 
     return std::pair<std::string, std::string>(key, value);
 }
 
 
-std::string RandomGenerator::generate_key(const std::string key_prefix)
+std::string RandomGenerator::gen_key()
 {
-    std::string rand = this->generate_rnd();
-    std::string key = key_prefix + rand;
-
-    return key;
+    return std::to_string(this->dist(this->engine));
 }
 
 
-std::string RandomGenerator::generate_val(size_t value_size, const std::string value_prefix)
+std::string RandomGenerator::gen_val(size_t value_size)
 {
-    unsigned long random_size = value_size - value_prefix.size();
-    std::string value = value_prefix + std::string(random_size, 'a');
+    std::string value = std::string(value_size, 'a');
 
     return value;
 }
 
 
-KeyFileGenerator::KeyFileGenerator(std::string key_file, int num_keys, int seed)
+KeyFileGenerator::KeyFileGenerator(std::string key_file, int offset, int num_keys, int seed, std::string mode)
 {
-    this->engine.seed(seed);
-    spdlog::debug("Reading {}", key_file);
-    std::ifstream fid(key_file, std::ios::in);
-    if (!fid)
+    this->mode = mode;
+    this->engine = std::mt19937(seed);
+    this->read_file(key_file, offset, num_keys);
+    if (mode == "uniform")
     {
-        spdlog::warn("Error opening key file {}", key_file);
+        this->dist_existing = new Uniform(offset);
+        this->dist_new = new Uniform(num_keys);
     }
-
-    spdlog::debug("Loading in keys");
-    this->keys.reserve(num_keys);
-    fid.read(reinterpret_cast<char *>(&this->keys[0]), num_keys * sizeof(int));
- 
-    this->key_gen = this->keys.begin();
-    fid.close();
+    else {
+        this->dist_existing = new Zipf(offset);
+        this->dist_new = new Zipf(num_keys);
+    }
 }
 
 
-KeyFileGenerator::KeyFileGenerator(std::string key_file, int offset, int num_keys, int seed)
+KeyFileGenerator::~KeyFileGenerator()
 {
-    this->engine.seed(seed);
-    spdlog::debug("Reading {}", key_file);
+    delete this->dist_new;
+    delete this->dist_existing;
+}
+
+
+void KeyFileGenerator::read_file(std::string key_file, int offset, int num_keys)
+{
+    spdlog::info("Reading in key_file {}", key_file);
     std::ifstream fid(key_file, std::ios::in | std::ios::binary);
     if (!fid)
     {
         spdlog::warn("Error opening key file {}", key_file);
     }
 
-    spdlog::debug("Loading in keys");
-    if (offset > 0)
-    {
-        std::vector<int> tmp(offset);
-        fid.read(reinterpret_cast<char *>(&tmp[0]), offset * sizeof(int));
-    }
+    this->existing_keys.resize(offset);
+    fid.read(reinterpret_cast<char *>(this->existing_keys.data()), offset * sizeof(int));
 
-    this->keys.reserve(num_keys); 
-    fid.read(reinterpret_cast<char *>(&this->keys[0]), num_keys * sizeof(int));
-    
+    this->keys.resize(num_keys);
+    fid.read(reinterpret_cast<char *>(this->keys.data()), num_keys * sizeof(int));
+
     this->key_gen = this->keys.begin();
+    spdlog::debug("Size of exisiting, new : {}, {}", this->existing_keys.size(), this->keys.size());
+
     fid.close();
 }
 
 
-std::string KeyFileGenerator::generate_key(const std::string key_prefix)
+std::string KeyFileGenerator::gen_key()
 {
-    std::string key = key_prefix + std::to_string(*this->key_gen);
+    std::string key = std::to_string(*this->key_gen);
     this->key_gen++;
 
     return key;
 }
 
 
-std::string KeyFileGenerator::generate_val(size_t value_size, const std::string value_prefix)
+std::string KeyFileGenerator::gen_val(size_t value_size)
 {
-    unsigned long random_size = value_size - value_prefix.size();
-    std::string value = value_prefix + std::string(random_size, 'a');
+    return std::string(value_size, 'a');
+}
 
-    return value;
-} 
+
+std::string KeyFileGenerator::gen_new_dup_key()
+{
+    std::string key = std::to_string(this->keys[this->dist_new->gen(this->engine) - 1]); 
+
+    return key;
+}
+
+
+std::string KeyFileGenerator::gen_existing_key()
+{
+    return std::to_string(this->existing_keys[this->dist_existing->gen(this->engine) - 1]);
+}

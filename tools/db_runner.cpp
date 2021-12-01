@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 #include "clipp.h"
+#include "zipf.hpp"
 #include "spdlog/spdlog.h"
 
 #include "rocksdb/db.h"
@@ -45,8 +46,10 @@ typedef struct environment
 
     bool prime_db = false;
 
-    std::string key_file;
+    std::string key_file = "uniform";
     bool use_key_file = false;
+
+    std::string dist_mode;
 } environment;
 
 
@@ -87,6 +90,8 @@ environment parse_args(int argc, char * argv[])
             % ("Use 2048 for HDD, 64 for flash [default: " + to_string(env.compaction_readahead_size) + "]"),
         (option("--rand_seed") & integer("seed", env.seed))
             % ("Random seed for experiment reproducability [default: " + to_string(env.seed) + "]"),
+        (option("--dist") & value("mode", env.dist_mode))
+            % ("distribution mode ['uniform', 'zipf']"),
         (option("--key-file").set(env.use_key_file, true) & value("file", env.key_file))
             % "use keyfile to speed up bulk loading"
     );
@@ -146,8 +151,9 @@ rocksdb::Status open_db(environment env,
     // Here we want level 0 to contain T sst files before trigger a compaction. 
     rocksdb_opt.level0_file_num_compaction_trigger = fluid_opt->lower_level_run_max + 1;
 
-    // Number of files in level 0 to slow down writes. Since we're prioritizing compactions we will wait for those to
-    // finish up first by slowing down the write speed
+    // Number of files in level 0 to slow down writes. Since we're prioritizing
+    // compactions we will wait for those to finish up first by slowing down the
+    // write speed
     rocksdb_opt.level0_slowdown_writes_trigger = 2 * (fluid_opt->lower_level_run_max + 1);
     rocksdb_opt.level0_stop_writes_trigger = 3 * (fluid_opt->lower_level_run_max + 1);
 
@@ -230,23 +236,35 @@ void append_valid_keys(environment env, std::vector<std::string> & new_keys)
 }
 
 
-int run_random_non_empty_reads(environment env, std::vector<std::string> existing_keys, rocksdb::DB * db)
+int run_random_non_empty_reads(environment env, rocksdb::DB * db, tmpdb::FluidOptions * fluid_opt)
 {
     spdlog::info("{} Non-Empty Reads", env.non_empty_reads);
     rocksdb::Status status;
 
     std::string value;
-    std::mt19937 engine;
-    std::uniform_int_distribution<int> dist(0, existing_keys.size() - 1);
+    std::mt19937 engine(env.seed);
+    DataGenerator * data_gen;
+    if (env.use_key_file)
+    {
+        data_gen = new KeyFileGenerator(env.key_file, fluid_opt->num_entries, 
+                                        0, env.seed, env.dist_mode);
+    }
+    else
+    {
+        spdlog::warn("No keyfile, empty reads are not guaranteed");
+        data_gen = new RandomGenerator();
+    }
 
     auto non_empty_read_start = std::chrono::high_resolution_clock::now();
     for (size_t read_count = 0; read_count < env.non_empty_reads; read_count++)
     {
-        status = db->Get(rocksdb::ReadOptions(), existing_keys[dist(engine)], &value);
+        status = db->Get(rocksdb::ReadOptions(), data_gen->gen_existing_key(), &value);
     }
     auto non_empty_read_end = std::chrono::high_resolution_clock::now();
     auto non_empty_read_duration = std::chrono::duration_cast<std::chrono::milliseconds>(non_empty_read_end - non_empty_read_start);
     spdlog::info("Non empty read time elapsed : {} ms", non_empty_read_duration.count());
+
+    delete data_gen;
 
     return non_empty_read_duration.count();
 }
@@ -263,7 +281,8 @@ int run_random_empty_reads(environment env, rocksdb::DB * db, tmpdb::FluidOption
     DataGenerator * data_gen;
     if (env.use_key_file)
     {
-        data_gen = new KeyFileGenerator(env.key_file, fluid_opt->num_entries, env.empty_reads, 0);
+        data_gen = new KeyFileGenerator(env.key_file, fluid_opt->num_entries, 
+                                        env.empty_reads, 0, env.dist_mode);
     }
     else
     {
@@ -274,11 +293,13 @@ int run_random_empty_reads(environment env, rocksdb::DB * db, tmpdb::FluidOption
     auto empty_read_start = std::chrono::high_resolution_clock::now();
     for (size_t read_count = 0; read_count < env.empty_reads; read_count++)
     {
-        status = db->Get(rocksdb::ReadOptions(), data_gen->generate_key(""), &value);
+        status = db->Get(rocksdb::ReadOptions(), data_gen->gen_new_dup_key(), &value);
     }
     auto empty_read_end = std::chrono::high_resolution_clock::now();
     auto empty_read_duration = std::chrono::duration_cast<std::chrono::milliseconds>(empty_read_end - empty_read_start);
     spdlog::info("Empty read time elapsed : {} ms", empty_read_duration.count());
+
+    delete data_gen;
 
     return empty_read_duration.count();
 }
@@ -349,12 +370,12 @@ std::pair<int, int> run_random_inserts(environment env,
     int writes_failed = 0;
 
     spdlog::debug("Writing {} key-value pairs", env.writes);
-    KeyFileGenerator data_gen(env.key_file, fluid_opt->num_entries, env.writes, 0);
+    KeyFileGenerator data_gen(env.key_file, fluid_opt->num_entries, env.writes, 0, env.dist_mode);
 
     auto start_write_time = std::chrono::high_resolution_clock::now();
     for (size_t write_idx = 0; write_idx < env.writes; write_idx++)
     {
-        std::pair<std::string, std::string> entry = data_gen.generate_kv_pair(fluid_opt->entry_size);
+        std::pair<std::string, std::string> entry = data_gen.gen_kv_pair(fluid_opt->entry_size);
         new_keys.push_back(entry.first);
         status = db->Put(write_opt, entry.first, entry.second);
         if (!status.ok())
@@ -450,6 +471,13 @@ int main(int argc, char * argv[])
     spdlog::set_pattern("[%T.%e]%^[%l]%$ %v");
     environment env = parse_args(argc, argv);
 
+    // std::random_device rd;
+    // std::mt19937 gen(rd());
+    // opencog::zipf_distribution<> zipf(300);
+ 
+    // for (int i = 0; i < 100; i++)
+    //     printf("draw %d %lu\n", i, zipf(gen));
+
     spdlog::info("Welcome to the db_runner!");
     if(env.verbose == 1)
     {
@@ -499,7 +527,7 @@ int main(int argc, char * argv[])
 
     if (env.non_empty_reads > 0)
     {
-        read_duration = run_random_non_empty_reads(env, existing_keys, db);
+        read_duration = run_random_non_empty_reads(env, db, fluid_opt);
     }
 
     if (env.range_reads > 0)

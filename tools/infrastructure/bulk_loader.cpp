@@ -201,7 +201,7 @@ rocksdb::Status FluidLSMBulkLoader::bulk_load_single_run(rocksdb::DB *db, size_t
         for (int i = 0; i < (int) batch_size; i++)
         {
             std::pair<std::string, std::string> key_value =
-                this->data_gen.generate_kv_pair(this->fluid_opt.entry_size);
+                this->data_gen.gen_kv_pair(this->fluid_opt.entry_size);
             batch.Put(key_value.first, key_value.second);
             this->keys.push_back(key_value.first);
         }
