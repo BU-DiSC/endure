@@ -322,7 +322,10 @@ int run_range_reads(environment env,
 
     std::string value;
     std::mt19937 engine;
-    std::uniform_int_distribution<int> dist(0, existing_keys.size() - 1 - key_hop);
+    opencog::zipf_distribution<int, double> dist(existing_keys.size() - 1 - key_hop);
+    if (env.dist_mode == "uniform") {
+        std::uniform_int_distribution<int> dist(0, existing_keys.size() - 1 - key_hop);
+    }
 
     read_opt.fill_cache = false;
     read_opt.total_order_seek = true;
