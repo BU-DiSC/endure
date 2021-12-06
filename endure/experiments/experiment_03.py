@@ -99,14 +99,14 @@ class Experiment03(object):
         session['session_id'] = 3
         sessions.append(session)
 
-        # session = df[df.w_s > 0.8].sample(samples, replace=False, random_state=0)
-        session = df[df.z0_s + df.z1_s > 0.8].sample(samples, replace=False, random_state=0)
+        session = df[df.w_s > 0.8].sample(samples, replace=False, random_state=0)
+        # session = df[df.z0_s + df.z1_s > 0.8].sample(samples, replace=False, random_state=0)
         session['session_id'] = 4
         sessions.append(session)
 
-        session = df[df.z0_s + df.z1_s > 0.8].sample(samples, replace=False, random_state=0)
-        # replace = len(df[df.dist < 0.2]) < samples
-        # session = df[df.dist < 0.2].sample(samples, replace=replace, random_state=0)
+        # session = df[df.z0_s + df.z1_s > 0.8].sample(samples, replace=False, random_state=0)
+        replace = len(df[df.dist < 0.2]) < samples
+        session = df[df.dist < 0.2].sample(samples, replace=replace, random_state=0)
         session['session_id'] = 5
         sessions.append(session)
 
@@ -134,7 +134,7 @@ class Experiment03(object):
             {'z0': 0.49, 'z1': 0.20, 'q': 0.20, 'w': 0.01},     # 16 - BONUS
         ]
         wl_idxs = list(range(17))
-        op_mask = (True, True, True, False)
+        op_mask = (True, True, True, True)
         bpe = 10
         buffer_min = 1 * 1024 * 1024 * 8 # 1 MiB in bits
 

@@ -34,3 +34,5 @@
 # build environment
 build
 .cache
+
+__pycache__/

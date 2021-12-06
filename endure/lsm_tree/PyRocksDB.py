@@ -192,7 +192,8 @@ class RocksDB(object):
             f'-w {num_w}',
             f'-p {prime}',
             '--parallelism {}'.format(THREADS),
-            '--key-file {}'.format(self.config['app']['KEY_FILE_PATH'])
+            '--key-file {}'.format(self.config['app']['KEY_FILE_PATH']),
+            '--dist zipf'
         ]
         cmd = ' '.join(cmd)
         self.logger.debug(f'{cmd}')
