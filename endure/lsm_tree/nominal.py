@@ -5,7 +5,7 @@ This class implements the nominal optimization problem
 import logging
 import numpy as np
 np.seterr(all='ignore')
-from scipy.optimize import minimize, basinhopping
+from scipy.optimize import minimize
 
 class NominalWorkloadTuning(object):
     """
