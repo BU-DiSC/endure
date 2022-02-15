@@ -4,11 +4,9 @@ Python API for RocksDB
 import logging
 import os
 import re
-from pprint import pprint
 import shutil
 import subprocess
 import numpy as np
-from pkg_resources import resource_listdir
 
 THREADS = 4
 
@@ -139,7 +137,7 @@ class RocksDB(object):
             shell=True,
         ).communicate()
 
-        existing_keys = int(self.existing_keys_prog.search(completed_process).groups()[0])
+        existing_keys = int(self.existing_keys_prog.search(completed_process).groups()[0]) # type: ignore
 
         return existing_keys
 
@@ -234,12 +232,12 @@ class RocksDB(object):
                 self.delete_temp_copy(db_dir)
             return results
 
-        level_hit_results = [int(result) for result in self.level_hit_prog.search(proc_results).groups()]
-        bf_count_results = [int(result) for result in self.bf_count_prog.search(proc_results).groups()]
-        compaction_results = [int(result) for result in self.compaction_bytes_prog.search(proc_results).groups()]
-        block_read_result = [int(result) for result in self.block_read_prog.search(proc_results).groups()]
-        compact_time_result = [int(result) for result in self.compact_time_prog.search(proc_results).groups()]
-        time_results = [int(result) for result in self.time_prog.search(proc_results).groups()]
+        level_hit_results = [int(result) for result in self.level_hit_prog.search(proc_results).groups()] # type: ignore
+        bf_count_results = [int(result) for result in self.bf_count_prog.search(proc_results).groups()] # type: ignore
+        compaction_results = [int(result) for result in self.compaction_bytes_prog.search(proc_results).groups()] # type: ignore
+        block_read_result = [int(result) for result in self.block_read_prog.search(proc_results).groups()] # type: ignore
+        compact_time_result = [int(result) for result in self.compact_time_prog.search(proc_results).groups()] # type: ignore
+        time_results = [int(result) for result in self.time_prog.search(proc_results).groups()] # type: ignore
         runs_per_level = self.runs_per_level_prog.findall(proc_results)[0]
 
         if copy:
