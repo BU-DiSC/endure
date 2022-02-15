@@ -3,7 +3,7 @@ This class defined the cost function of the LSM tree
 """
 import numpy as np
 from numba.experimental import jitclass
-from numba import int32, float32, boolean, float64, int64
+from numba import boolean, float64, int64
 
 spec = [
     ('N', float64),
@@ -26,6 +26,7 @@ class CostFunction:
     """
     This class defines the cost function of the LSM Tree
     """
+
     def __init__(self, N, phi, s, B, E, M, is_leveling_policy, z0, z1, q, w):
         """Constructor
 

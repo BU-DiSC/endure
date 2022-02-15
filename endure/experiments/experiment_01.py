@@ -8,7 +8,7 @@ for workload uncertainty comparisons
 
 import logging
 from copy import deepcopy
-import warnings
+# import warnings
 # warnings.filterwarnings('ignore', category=RuntimeWarning)
 
 import numpy as np
@@ -68,7 +68,7 @@ class Experiment01(object):
             {'z0': 0.10, 'z1': 0.10, 'q': 0.10, 'w': 0.70},     # 15
             {'z0': 0.70, 'z1': 0.20, 'q': 0.01, 'w': 0.01},     # 16
             {'z0': 0.30, 'z1': 0.01, 'q': 0.01, 'w': 0.60},     # 17
-       ]
+        ]
 
         # Expected memory bits per element list
         # expected_memory_bits_per_element = [10, 15, 20]

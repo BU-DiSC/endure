@@ -47,7 +47,7 @@ class SampleUncertainWorkloads(object):
             w_hat = [num if mask else 0 for num, mask in list(zip(w_hat, ops))]
             w_hat = w_hat / np.sum(w_hat)
             w_hat = np.around(w_hat, PRECISION)
- 
+
             z0_sample, z1_sample, q_sample, w_sample = w_hat
             sample = {}
             sample['z0'] = z0_sample

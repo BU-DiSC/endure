@@ -3,16 +3,16 @@ app:
     app_logging_level: "INFO"
 
     ROOT_DIR: "endure"
-    DATA_DIR: "/Users/ndhuynh/sandbox/data"
+    DATA_DIR: "/scratchNVM0/ndhuynh/data"
 
     BUILDER_PATH: "../build/db_builder"
     EXECUTION_PATH: "../build/db_runner"
-    DATABASE_PATH: "/Users/ndhuynh/sandbox/db"
-    KEY_FILE_PATH: "/Users/ndhuynh/sandbox/keys.bin"
+    DATABASE_PATH: "/scratchNVM0/ndhuynh/tmp"
+    KEY_FILE_PATH: "/scratchNVM0/ndhuynh/data/keys.data"
 
 lsm_tree_config: 
-    N: 100000000
-    phi: 1          
+    N: 10000000
+    phi: 1
     s: 0.00         # Average range query selectivity
     B: 4            # Number of entries that fit in a disk page
     E: 8192         # Size of data entries in bits

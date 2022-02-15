@@ -19,6 +19,7 @@ from robust.workload_uncertainty import WorkloadUncertainty
 from lsm_tree.nominal import NominalWorkloadTuning
 from lsm_tree.cost_function import CostFunction
 
+
 class Experiment03(object):
 
     def __init__(self, config):
@@ -45,8 +46,7 @@ class Experiment03(object):
             design['B'] = lsm_config['B']
             design['s'] = lsm_config['s']
             design['E'] = lsm_config['E']
-            design['M'] = lsm_config['M'] = ((bpe * lsm_config['N'])
-                                                + buffer_min)
+            design['M'] = lsm_config['M'] = ((bpe * lsm_config['N']) + buffer_min)
 
             cf = CostFunction(**lsm_config, **expected_wls[wl_idx])
             nominal = NominalWorkloadTuning(cf)
@@ -133,10 +133,11 @@ class Experiment03(object):
             {'z0': 0.10, 'z1': 0.10, 'q': 0.10, 'w': 0.70},     # 15 - BONUS
             {'z0': 0.49, 'z1': 0.20, 'q': 0.20, 'w': 0.01},     # 16 - BONUS
         ]
-        wl_idxs = list(range(17))
+        # wl_idxs = list(range(17))
+        wl_idxs = [15]
         op_mask = (True, True, True, True)
         bpe = 10
-        buffer_min = 1 * 1024 * 1024 * 8 # 1 MiB in bits
+        buffer_min = 1 * 1024 * 1024 * 8  # 1 MiB in bits
 
         suw = SampleUncertainWorkloads(self.config)
         sample_wls = suw.get_uncertain_samples(10000, op_mask)
@@ -153,12 +154,12 @@ class Experiment03(object):
             for idx, wl in enumerate(sample_wls):
                 w_hat = [wl['z0'], wl['z1'], wl['q'], wl['w']]
                 sample_wls_dist.append(
-                    {'sample_idx' : idx,
-                     'z0_s' : wl['z0'],
-                     'z1_s' : wl['z1'],
-                     'q_s' : wl['q'],
-                     'w_s' : wl['w'],
-                     'dist' : np.sum(rel_entr(w_hat, w0))})
+                    {'sample_idx': idx,
+                     'z0_s': wl['z0'],
+                     'z1_s': wl['z1'],
+                     'q_s': wl['q'],
+                     'w_s': wl['w'],
+                     'dist': np.sum(rel_entr(w_hat, w0))})
             sample_wls_dist = pd.DataFrame(sample_wls_dist)
             sessions[wl_idx] = curr_session = self.create_sessions(sample_wls_dist, 5)
             w_hat_avg = curr_session[['z0_s', 'z1_s', 'q_s', 'w_s']].mean().values
@@ -234,4 +235,3 @@ class Experiment03(object):
         self.logger.info('Finished experiment 03')
 
         return 0
-

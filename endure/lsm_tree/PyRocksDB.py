@@ -214,25 +214,25 @@ class RocksDB(object):
         except subprocess.TimeoutExpired:
             self.logger.warn('Timeout limit reached. Aborting')
             proc.kill()
-            results['l0_hit'] = 0 
-            results['l1_hit'] = 0 
-            results['l2_plus_hit'] = 0 
-            results['z0_ms'] = 0 
-            results['z1_ms'] = 0 
-            results['q_ms'] = 0 
-            results['w_ms'] = 0 
-            results['filter_neg'] = 0 
-            results['filter_pos'] = 0 
-            results['filter_pos_true'] = 0 
-            results['bytes_written'] = 0 
-            results['compact_read'] = 0 
-            results['compact_write'] = 0 
-            results['flush_written'] = 0 
-            results['blocks_read'] = 0 
-            results['runs_per_level'] = 0 
+            results['l0_hit'] = 0
+            results['l1_hit'] = 0
+            results['l2_plus_hit'] = 0
+            results['z0_ms'] = 0
+            results['z1_ms'] = 0
+            results['q_ms'] = 0
+            results['w_ms'] = 0
+            results['filter_neg'] = 0
+            results['filter_pos'] = 0
+            results['filter_pos_true'] = 0
+            results['bytes_written'] = 0
+            results['compact_read'] = 0
+            results['compact_write'] = 0
+            results['flush_written'] = 0
+            results['blocks_read'] = 0
+            results['runs_per_level'] = 0
             if copy:
                 self.delete_temp_copy(db_dir)
-            return results 
+            return results
 
         level_hit_results = [int(result) for result in self.level_hit_prog.search(proc_results).groups()]
         bf_count_results = [int(result) for result in self.bf_count_prog.search(proc_results).groups()]
