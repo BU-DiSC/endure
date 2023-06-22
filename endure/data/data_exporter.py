@@ -32,6 +32,18 @@ class DataExporter(object):
         df.to_csv(filepath, sep=',', header=True, index=False)
         self.logger.info("Exported dataframe to {}".format(filepath))
 
+    def export_parquet_file(self, df, filename):
+        """
+        Exports a dataframe in form of a csv file
+
+        :param df:
+        :param filename:
+        """
+        DATA_DIR = self.config['app']['DATA_DIR']
+        filepath = os.path.join(DATA_DIR, filename)
+        df.to_parquet(filepath, sep=',', header=True, index=False)
+        self.logger.info("Exported dataframe to {}".format(filepath))
+
     def export_dill_file(self, data, filename):
         """
         Exports data in form of a dill file

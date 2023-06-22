@@ -30,32 +30,12 @@ class CostFunction:
     """
 
     def __init__(self, N, phi, s, B, E, M, is_leveling_policy, z0, z1, q, w):
-        """Constructor
-
-        :param N:
-        :param phi:
-        :param s:
-        :param B:
-        :param E:
-        :param M:
-        :param policy:
-        :param z0:
-        :param z1:
-        :param q:
-        :param w:
-        """
         self.N, self.phi, self.s, = N, phi, s
         self.B, self.E, self.M = B, E, M
         self.is_leveling_policy = is_leveling_policy
         self.z0, self.z1, self.q, self.w = z0, z1, q, w
 
     def L(self, h, T, get_ceiling=True):
-        """L(x) function from Eq. 38
-        with h = x / N
-
-        :param h:
-        :param T:
-        """
         mbuff = self.M - (h * self.N)
         level = np.log(((self.N * self.E) / mbuff) + 1) / np.log(T)
         if get_ceiling:
@@ -64,16 +44,6 @@ class CostFunction:
         return level
 
     def N_full(self, L, h, T):
-        """
-        Calculates the maximum number of elements a tree with size ratio T and
-        levels L can hold
-
-        :param L: max levels
-        :param T: size ratio
-
-        :return: Number of elements
-        :rtype: int
-        """
         num_entries = 0
         mbuff = self.M - (h * self.N)
         for level in range(1, int(L) + 1):
@@ -82,27 +52,11 @@ class CostFunction:
         return num_entries
 
     def fp(self, h, T, curr_level):
-        """Calculate false positive rate for a particular level
-
-        :param h: filter bits per element
-        :param T: size ratio
-        :param curr_level: level to calculate false positive rate
-
-        :return: false positive rate
-        :rtype: float
-        """
         alpha = (T ** (T / (T - 1))) / (T ** (self.L(h, T) + 1 - curr_level))
 
         return alpha * np.exp(-1 * h * (np.log(2) ** 2))
 
     def Z0(self, h, T):
-        """Z0(x) function (empty point query cost)
-        with h = x / N
-
-        :param h:
-        :param T:
-        """
-
         z0 = 0
         for i in range(1, self.L(h, T) + 1):
             z0 += self.fp(h, T, i)
@@ -113,14 +67,6 @@ class CostFunction:
         return z0
 
     def Z1(self, h, T):
-        """Z1(x) function (expected non-empty point query cost)
-
-        :param h: filter bits per element
-        :param T: size ratio
-
-        :return: cost
-        :rtype: float
-        """
         mbuff = self.M - (h * self.N)
         assert mbuff > 0, 'Mbuff must be positive'
 
@@ -146,12 +92,6 @@ class CostFunction:
         return cost
 
     def Q(self, h, T):
-        """Q(x) function from Eq. 38
-        with h = x / N
-
-        :param h:
-        :param T:
-        """
         q = self.s * self.N / self.B
         if self.is_leveling_policy:
             q += self.L(h, T, get_ceiling=False)
@@ -160,12 +100,6 @@ class CostFunction:
         return q
 
     def W(self, h, T):
-        """W(x) function from Eq. 38
-        with h = x / N
-
-        :param h:
-        :param T:
-        """
         w = (T - 1) * (1 + self.phi) * self.L(h, T, get_ceiling=False) / self.B
         if self.is_leveling_policy:
             w /= 2
@@ -174,14 +108,6 @@ class CostFunction:
         return w
 
     def calculate_cost(self, h, T, is_leveling_policy=None, B=None, E=None):
-        """Calculates lsm tree cost for a given specification
-
-        :param h:
-        :param T:
-        :param is_leveling_policy:
-        :param B:
-        :param E:
-        """
         if np.isnan(h):
             return np.iinfo(np.int64).max
         if np.isnan(T):

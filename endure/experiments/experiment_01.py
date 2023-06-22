@@ -8,18 +8,16 @@ for workload uncertainty comparisons
 
 import logging
 from copy import deepcopy
-# import warnings
-# warnings.filterwarnings('ignore', category=RuntimeWarning)
 
 import numpy as np
-# np.seterr(all='ignore')
 import pandas as pd
 from tqdm import tqdm
 from scipy.special import rel_entr
 
 from data.data_provider import DataProvider
 from data.data_exporter import DataExporter
-from jobs.create_workload_uncertainty_tunings import CreateWorkloadUncertaintyTunings
+from jobs.create_workload_uncertainty_tunings import (
+        CreateWorkloadUncertaintyTunings)
 from jobs.sample_uncertain_workloads import SampleUncertainWorkloads
 from lsm_tree.cost_function import CostFunction
 
@@ -65,9 +63,9 @@ class Experiment01(object):
             {'z0': 0.33, 'z1': 0.33, 'q': 0.01, 'w': 0.33},     # 12
             {'z0': 0.33, 'z1': 0.01, 'q': 0.33, 'w': 0.33},     # 13
             {'z0': 0.01, 'z1': 0.33, 'q': 0.33, 'w': 0.33},     # 14
-            {'z0': 0.10, 'z1': 0.10, 'q': 0.10, 'w': 0.70},     # 15
-            {'z0': 0.70, 'z1': 0.20, 'q': 0.01, 'w': 0.01},     # 16
-            {'z0': 0.30, 'z1': 0.01, 'q': 0.01, 'w': 0.60},     # 17
+            # {'z0': 0.10, 'z1': 0.10, 'q': 0.10, 'w': 0.70},     # 15
+            # {'z0': 0.70, 'z1': 0.20, 'q': 0.01, 'w': 0.01},     # 16
+            # {'z0': 0.30, 'z1': 0.01, 'q': 0.01, 'w': 0.60},     # 17
         ]
 
         # Expected memory bits per element list
@@ -80,17 +78,16 @@ class Experiment01(object):
         # Create workload uncertainty tunings
         config = deepcopy(self.config)
         config['expected_workloads'] = expected_workloads
-        config['expected_memory_bits_per_element'] = expected_memory_bits_per_element
+        config['expected_memory_bits_per_element'] = \
+            expected_memory_bits_per_element
         config['uncertain_workload_config']['rho_low'] = 0
         config['uncertain_workload_config']['rho_high'] = 4
         config['uncertain_workload_config']['rho_step'] = 0.25
         config['uncertain_workload_config']['N'] = sample_size
-        config['lsm_tree_config']['N'] = 1e8
+        config['lsm_tree_config']['N'] = 1e7
 
-        # Sample uncertain workloads object
         suw = SampleUncertainWorkloads(config)
 
-        # Create workload uncertainty tunings and get a list of tunings dictionaries
         cwut = CreateWorkloadUncertaintyTunings(config)
         tunings = cwut.run().to_dict('records')
 
@@ -107,14 +104,16 @@ class Experiment01(object):
             distances[key] = []
             for sample in sample_wls:
                 w_hat = [sample['z0'], sample['z1'], sample['q'], sample['w']]
-                w_hat_tmp = [op for op, mask in list(zip(w_hat, ops_mask)) if mask]
+                w_hat_tmp = [op for op, mask in list(
+                    zip(w_hat, ops_mask)) if mask]
                 distances[key].append(np.sum(rel_entr(w_hat_tmp, w0_tmp)))
 
         self.logger.info('Calculating cost of tunings')
         for tuning in tqdm(tunings, desc='Tunings', ncols=120):
             row = {}
             row['workload_idx'] = tuning['workload_idx']
-            row['w'] = {'z0': tuning['z0'], 'z1': tuning['z1'], 'q': tuning['q'], 'w': tuning['w']}
+            row['w'] = {'z0': tuning['z0'], 'z1': tuning['z1'],
+                        'q': tuning['q'], 'w': tuning['w']}
             row['N'] = tuning['N']
             row['M'] = tuning['M']
 
@@ -122,32 +121,41 @@ class Experiment01(object):
             row['robust_rho'] = tuning['rho']
             row['robust_m_filt'] = tuning['robust_m_filt']
             row['robust_T'] = tuning['robust_T']
-            row['robust_is_leveling_policy'] = tuning['robust_is_leveling_policy']
+            row['robust_is_leveling_policy'] = (
+                    tuning['robust_is_leveling_policy'])
             row['robust_exit_mode'] = tuning['robust_exit_mode']
 
             row['nominal_m_filt'] = tuning['nominal_m_filt']
             row['nominal_T'] = tuning['nominal_T']
-            row['nominal_is_leveling_policy'] = tuning['nominal_is_leveling_policy']
+            row['nominal_is_leveling_policy'] = (
+                    tuning['nominal_is_leveling_policy'])
 
             config['lsm_tree_config']['M'] = tuning['M']
 
             distance = distances[str(row['w'])]
-            for idx, w_hat in enumerate(tqdm(sample_wls, desc='Sample Workloads', ncols=120, leave=False)):
+            for idx, w_hat in enumerate(tqdm(
+                    sample_wls,
+                    desc='Sample Workloads',
+                    ncols=120, leave=False)):
                 row['rho_hat'] = distance[idx]
                 row['w_hat'] = w_hat
                 row['sample_idx'] = idx
 
                 # Get nominal cost
-                config['lsm_tree_config']['is_leveling_policy'] = row['nominal_is_leveling_policy']
+                config['lsm_tree_config']['is_leveling_policy'] = (
+                        row['nominal_is_leveling_policy'])
                 cf = CostFunction(**config['lsm_tree_config'], **w_hat)
-                nominal_cost = cf.calculate_cost(row['nominal_m_filt'] / row['N'], row['nominal_T'])
+                nominal_cost = cf.calculate_cost(
+                    row['nominal_m_filt'] / row['N'], row['nominal_T'])
                 row['nominal_cost'] = nominal_cost
                 del cf
 
                 # Get robust cost
-                config['lsm_tree_config']['is_leveling_policy'] = row['robust_is_leveling_policy']
+                config['lsm_tree_config']['is_leveling_policy'] = (
+                        row['robust_is_leveling_policy'])
                 cf = CostFunction(**config['lsm_tree_config'], **w_hat)
-                robust_cost = cf.calculate_cost(row['robust_m_filt'] / row['N'], row['robust_T'])
+                robust_cost = cf.calculate_cost(
+                    row['robust_m_filt'] / row['N'], row['robust_T'])
                 row['robust_cost'] = robust_cost
                 del cf
 
