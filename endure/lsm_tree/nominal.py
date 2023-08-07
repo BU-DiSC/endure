@@ -48,6 +48,7 @@ class NominalWorkloadTuning(object):
         bounds = ((0, H_UPPER_LIM), (T_LOWER_LIM, T_UPPER_LIM))
         min_cost = np.inf
         design = {}
+        design['filter_policy'] = 1
         minimizer_kwargs = {
             'method': 'SLSQP',
             'bounds': bounds,

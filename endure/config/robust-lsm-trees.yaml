@@ -18,6 +18,7 @@ lsm_tree_config:
     E: 8192         # Size of data entries in bits
     M: 8589934592   # Total memory budget of 1 GiB
     is_leveling_policy: True  # Leveling or Tiering policy
+    filter_policy: 0
 
 expected_workloads:
     - z0: 0.25    # Empty point query percentage  

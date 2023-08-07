@@ -20,19 +20,20 @@ typedef struct environment
     tmpdb::bulk_load_type bulk_load_mode;
 
     // Build mode
-    double T = 2;
+    double T = 4;
     double K = 1;
     double Z = 1;
-    size_t B = 1 << 20; //> 1 MiB
+    size_t B = 64 << 20; //> 1 MiB   /* set to default value for  write_buffer_size */
     size_t E = 1 << 10; //> 1 KiB
-    double bits_per_element = 5.0;
+    double bits_per_element = 10.0;  // set to default bits_per_key = 10
     size_t N = 1e6;
     size_t L = 0;
+    int filter_policy =0;
 
     int verbose = 0;
-    bool destroy_db = false;
+    bool destroy_db = true;
 
-    int max_rocksdb_levels = 16;
+    int max_rocksdb_levels = 7; //default max levels
     int parallelism = 1;
 
     int seed = 0;
@@ -68,6 +69,8 @@ environment parse_args(int argc, char * argv[])
             (value("db_path", env.db_path)) % "path to the db",
             (option("-T", "--size-ratio") & number("ratio", env.T))
                 % ("size ratio, [default: " + fmt::format("{:.0f}", env.T) + "]"),
+            (option("-filter_policy", "--filter_policy") & integer("filter_policy", env.filter_policy))
+                % ("Filter policies (0: Default, 1: New Bloom Filter Policy, 2: Monkey)"),
             (option("-K", "--lower_level_lim") & number("lim", env.K))
                 % ("lower levels file limit, [default: " + fmt::format("{:.0f}", env.K) + "]"),
             (option("-Z", "--last_level_lim") & number("lim", env.Z))
@@ -157,6 +160,7 @@ void fill_fluid_opt(environment env, tmpdb::FluidOptions &fluid_opt)
     fluid_opt.entry_size = env.E;
     fluid_opt.bits_per_element = env.bits_per_element;
     fluid_opt.bulk_load_opt = env.bulk_load_mode;
+    fluid_opt.filter_policy = env.filter_policy;
     if (fluid_opt.bulk_load_opt == tmpdb::bulk_load_type::ENTRIES)
     {
         fluid_opt.num_entries = env.N;
@@ -200,6 +204,8 @@ void build_db(environment & env)
     rocksdb_opt.compaction_style = rocksdb::kCompactionStyleNone;
     rocksdb_opt.compression = rocksdb::kNoCompression;
     // Bulk loading so we manually trigger compactions when need be
+    rocksdb_opt.level0_file_num_compaction_trigger = 4;    /* set to default for T*/
+    rocksdb_opt.max_bytes_for_level_multiplier = 4;
     rocksdb_opt.level0_file_num_compaction_trigger = -1;
     rocksdb_opt.IncreaseParallelism(env.parallelism);
 
@@ -224,22 +230,56 @@ void build_db(environment & env)
     rocksdb_opt.listeners.emplace_back(fluid_compactor);
 
     rocksdb::BlockBasedTableOptions table_options;
-    if (env.L > 0)
-    {
-        table_options.filter_policy.reset(
-            rocksdb::NewMonkeyFilterPolicy(
-                env.bits_per_element,
-                (int) env.T,
-                env.L + 1));
+//    if (env.L > 0)
+//    {
+//        table_options.filter_policy.reset(
+//            rocksdb::NewMonkeyFilterPolicy(
+//                env.bits_per_element,
+//                (int) env.T,
+//                env.L + 1));
+//    }
+//    else
+//    {
+//        table_options.filter_policy.reset(
+//            rocksdb::NewMonkeyFilterPolicy(
+//                env.bits_per_element,
+//                (int) env.T,
+//                FluidLSMBulkLoader::estimate_levels(env.N, env.T, env.E, env.B) + 1));
+//    }
+//    table_options.filter_policy = nullptr;
+     if (env.filter_policy==2){
+        spdlog::info("using monkey policy");
+        if (env.L > 0)
+        {
+            table_options.filter_policy.reset(
+                rocksdb::NewMonkeyFilterPolicy(
+                    env.bits_per_element,
+                    (int) env.T,
+                    env.L + 1));
+        }
+
+        else
+        {
+            table_options.filter_policy.reset(
+                rocksdb::NewMonkeyFilterPolicy(
+                    env.bits_per_element,
+                    (int) env.T,
+                    FluidLSMBulkLoader::estimate_levels(env.N, env.T, env.E, env.B) + 1));
+        }
     }
-    else
-    {
-        table_options.filter_policy.reset(
-            rocksdb::NewMonkeyFilterPolicy(
-                env.bits_per_element,
-                (int) env.T,
-                FluidLSMBulkLoader::estimate_levels(env.N, env.T, env.E, env.B) + 1));
+    else if (env.filter_policy==1){
+            table_options.filter_policy.reset(
+                            rocksdb::NewBloomFilterPolicy(
+                                env.bits_per_element,
+                                false));
+            spdlog::info("using new bloom policy");
+
     }
+    else {
+        table_options.filter_policy = nullptr;
+        spdlog::info("using default policy");
+    }
+
     table_options.no_block_cache = true;
     rocksdb_opt.table_factory.reset(
             rocksdb::NewBlockBasedTableFactory(table_options));
