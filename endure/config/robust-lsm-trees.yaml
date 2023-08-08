@@ -3,12 +3,12 @@ app:
     app_logging_level: "INFO"
 
     ROOT_DIR: "endure"
-    DATA_DIR: "/scratchNVM0/ndhuynh/data"
+    DATA_DIR: "../scratchNVM0/ndhuynh/data"
 
     BUILDER_PATH: "../build/db_builder"
     EXECUTION_PATH: "../build/db_runner"
-    DATABASE_PATH: "/scratchNVM0/ndhuynh/tmp"
-    KEY_FILE_PATH: "/scratchNVM0/ndhuynh/data/keys.data"
+    DATABASE_PATH: "../scratchNVM0/ndhuynh/tmp"
+    KEY_FILE_PATH: "../scratchNVM0/ndhuynh/data/keys.data"
 
 lsm_tree_config: 
     N: 10000000

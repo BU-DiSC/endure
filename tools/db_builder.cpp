@@ -28,7 +28,8 @@ typedef struct environment
     double bits_per_element = 10.0;  // set to default bits_per_key = 10
     size_t N = 1e6;
     size_t L = 0;
-    int filter_policy =0;
+    int filter_policy = 0;
+    int tuning = 0;
 
     int verbose = 0;
     bool destroy_db = true;
@@ -71,6 +72,8 @@ environment parse_args(int argc, char * argv[])
                 % ("size ratio, [default: " + fmt::format("{:.0f}", env.T) + "]"),
             (option("-filter_policy", "--filter_policy") & integer("filter_policy", env.filter_policy))
                 % ("Filter policies (0: Default, 1: New Bloom Filter Policy, 2: Monkey)"),
+            (option("-tuning", "--tuning") & integer("tuning", env.tuning))
+                    % ("Tuning (0: Default, 1: Nominal, 2: Robust)"),
             (option("-K", "--lower_level_lim") & number("lim", env.K))
                 % ("lower levels file limit, [default: " + fmt::format("{:.0f}", env.K) + "]"),
             (option("-Z", "--last_level_lim") & number("lim", env.Z))
@@ -247,7 +250,8 @@ void build_db(environment & env)
 //                FluidLSMBulkLoader::estimate_levels(env.N, env.T, env.E, env.B) + 1));
 //    }
 //    table_options.filter_policy = nullptr;
-     if (env.filter_policy==2){
+
+     if (env.filter_policy == 2){
         spdlog::info("using monkey policy");
         if (env.L > 0)
         {

@@ -75,7 +75,7 @@ environment parse_args(int argc, char * argv[])
             % ("non-empty queries, [default: " + to_string(env.non_empty_reads) + "]"),
         (option("-q", "--range_reads") & integer("num", env.range_reads))
             % ("range reads, [default: " + to_string(env.range_reads) + "]"),
-        (option("-w", "--writes") & integer("num", env.writes))
+        (option("-tuning", "--tuning") & integer("tuning", env.tuning))
             % ("empty queries, [default: " + to_string(env.writes) + "]"),
         (option("-o", "--output").set(env.write_out) & value("file", env.write_out_path))
             % ("optional write out all recorded times [default: off]"),

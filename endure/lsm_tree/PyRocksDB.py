@@ -118,6 +118,7 @@ class RocksDB(object):
             '-d',
             '-T {}'.format(self.T),
             '-filter_policy {}'.format(self.filter_policy),
+            '-tuning {}'.format(self.tuning),
             '-K {}'.format(self.K),
             '-Z {}'.format(self.Z),
             '-B {}'.format(mbuff),
