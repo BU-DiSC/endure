@@ -20,21 +20,21 @@ typedef struct environment
     tmpdb::bulk_load_type bulk_load_mode;
 
     // Build mode
-    double T = 4;
+    double T = 2;
     double K = 1;
     double Z = 1;
-    size_t B = 64 << 20; //> 1 MiB   /* set to default value for  write_buffer_size */
+    size_t B = 1 << 20; //> 1 MiB   /
     size_t E = 1 << 10; //> 1 KiB
-    double bits_per_element = 10.0;  // set to default bits_per_key = 10
+    double bits_per_element = 5;
     size_t N = 1e6;
     size_t L = 0;
     int filter_policy = 0;
     int tuning = 0;
 
     int verbose = 0;
-    bool destroy_db = true;
+    bool destroy_db = false;
 
-    int max_rocksdb_levels = 7; //default max levels
+    int max_rocksdb_levels = 16; //default max levels
     int parallelism = 1;
 
     int seed = 0;
@@ -156,6 +156,13 @@ environment parse_args(int argc, char * argv[])
 
 void fill_fluid_opt(environment env, tmpdb::FluidOptions &fluid_opt)
 {
+    if (env.tuning == 0){
+        spdlog::info("using default tuning - rocksdb fluid options");
+        env.T = 4;
+        env.B = 64 << 20;
+        env.bits_per_element = 10;
+
+    }
     fluid_opt.size_ratio = env.T;
     fluid_opt.largest_level_run_max = env.Z;
     fluid_opt.lower_level_run_max = env.K;
@@ -207,8 +214,6 @@ void build_db(environment & env)
     rocksdb_opt.compaction_style = rocksdb::kCompactionStyleNone;
     rocksdb_opt.compression = rocksdb::kNoCompression;
     // Bulk loading so we manually trigger compactions when need be
-    rocksdb_opt.level0_file_num_compaction_trigger = 4;    /* set to default for T*/
-    rocksdb_opt.max_bytes_for_level_multiplier = 4;
     rocksdb_opt.level0_file_num_compaction_trigger = -1;
     rocksdb_opt.IncreaseParallelism(env.parallelism);
 
@@ -233,6 +238,12 @@ void build_db(environment & env)
     rocksdb_opt.listeners.emplace_back(fluid_compactor);
 
     rocksdb::BlockBasedTableOptions table_options;
+
+    if(env.tuning == 0){
+        spdlog::info("using default tuning - db builder rocksdb options");
+        rocksdb_opt.level0_file_num_compaction_trigger = 4;
+        rocksdb_opt.max_bytes_for_level_multiplier = 4;
+    }
 //    if (env.L > 0)
 //    {
 //        table_options.filter_policy.reset(

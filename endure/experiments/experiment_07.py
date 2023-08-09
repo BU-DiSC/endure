@@ -205,7 +205,7 @@ class Experiment07(object):
                 table.append(row)
             table = pd.DataFrame(table)
 
-            for mode in ['default', 'nominal', 'robust']:
+            for i,mode in enumerate(['default', 'nominal', 'robust']):
                 settings = {}
                 settings['db_name'] = 'exp03_db'
                 settings['path_db'] = self.config['app']['DATABASE_PATH']
@@ -216,6 +216,7 @@ class Experiment07(object):
                 settings['h'] = design[f'{mode}_bpe']
                 settings['filter_policy'] = design[f'{mode}_filter_policy']
                 settings['is_leveling_policy'] = design[f'{mode}_is_leveling_policy']
+                settings['tuning'] = i
 
                 db = RocksDB(self.config)
                 _ = db.init_database(**settings)

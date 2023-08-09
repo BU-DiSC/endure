@@ -32,12 +32,12 @@ typedef struct environment
     size_t writes = 0;
     size_t prime_reads = 0;
 
-    int rocksdb_max_levels = 7; /*set to default value */
+    int rocksdb_max_levels = 16;
     int parallelism = 1;
 
     int compaction_readahead_size = 64;
     int seed = 42;
-    int max_open_files = -1;   /*set to default value */
+    int max_open_files = 512;
 
     std::string write_out_path;
     bool write_out = false;
@@ -48,6 +48,7 @@ typedef struct environment
 
     std::string key_file = "uniform";
     bool use_key_file = false;
+    int tuning = 0;
 
     std::string dist_mode;
 } environment;
@@ -75,8 +76,10 @@ environment parse_args(int argc, char * argv[])
             % ("non-empty queries, [default: " + to_string(env.non_empty_reads) + "]"),
         (option("-q", "--range_reads") & integer("num", env.range_reads))
             % ("range reads, [default: " + to_string(env.range_reads) + "]"),
-        (option("-tuning", "--tuning") & integer("tuning", env.tuning))
+        (option("-w", "--writes") & integer("num", env.writes))
             % ("empty queries, [default: " + to_string(env.writes) + "]"),
+        (option("-tuning", "--tuning") & integer("tuning", env.tuning))
+            % ("Tuning (0: Default, 1: Nominal, 2: Robust)"),
         (option("-o", "--output").set(env.write_out) & value("file", env.write_out_path))
             % ("optional write out all recorded times [default: off]"),
         (option("-p", "--prime").set(env.prime_db) & value("num", env.prime_reads))
@@ -124,7 +127,7 @@ rocksdb::Status open_db(environment env,
     // rocksdb_opt.statistics = rocksdb::CreateDBStatistics();
     fluid_opt = new tmpdb::FluidOptions(env.db_path + "/fluid_config.json");
 
-    rocksdb_opt.create_if_missing = false;
+    rocksdb_opt.create_if_missing = true;
     rocksdb_opt.error_if_exists = false;
     rocksdb_opt.compaction_style = rocksdb::kCompactionStyleNone;
     rocksdb_opt.compression = rocksdb::kNoCompression;
@@ -136,12 +139,12 @@ rocksdb::Status open_db(environment env,
     rocksdb_opt.num_levels = env.rocksdb_max_levels;
 
     // Disable and enable certain settings for closer to vanilla LSM
-    rocksdb_opt.use_direct_reads = false;   /*set to default value */
-    rocksdb_opt.use_direct_io_for_flush_and_compaction = false;   /*set to default value */
+    rocksdb_opt.use_direct_reads = true;
+    rocksdb_opt.use_direct_io_for_flush_and_compaction = true;
     rocksdb_opt.max_open_files = env.max_open_files;
-    rocksdb_opt.advise_random_on_open = true;     /*set to default value */
-    rocksdb_opt.random_access_max_buffer_size = 1024 * 1024;
-    rocksdb_opt.avoid_unnecessary_blocking_io = false;    /*set to default value */
+    rocksdb_opt.advise_random_on_open = false;
+    rocksdb_opt.random_access_max_buffer_size = 0;
+    rocksdb_opt.avoid_unnecessary_blocking_io = true;    /*set to default value */
 
     // Prevent rocksdb from limiting file size as we manage it ourselves
     rocksdb_opt.target_file_size_base = UINT64_MAX;
@@ -160,6 +163,16 @@ rocksdb::Status open_db(environment env,
     rocksdb_opt.listeners.emplace_back(fluid_compactor);
 
     rocksdb::BlockBasedTableOptions table_options;
+    if(env.tuning == 0){
+            spdlog::info("using default tuning - db runner");
+            rocksdb_opt.use_direct_reads = false;
+            rocksdb_opt.use_direct_io_for_flush_and_compaction = false;
+            rocksdb_opt.advise_random_on_open = true;
+            rocksdb_opt.random_access_max_buffer_size = 1024 * 1024;
+            rocksdb_opt.avoid_unnecessary_blocking_io = false;
+            rocksdb_opt.max_open_files = -1;
+
+        }
 //    if (fluid_opt->levels > 0)
 //    {
 //        table_options.filter_policy.reset(
@@ -397,8 +410,8 @@ std::pair<int, int> run_random_inserts(environment env,
     rocksdb::Status status;
     std::vector<std::string> new_keys;
     write_opt.sync = false;
-    write_opt.low_pri = false; //> every insert is less important than compaction
-    write_opt.disableWAL = false;
+    write_opt.low_pri = true; //> every insert is less important than compaction
+    write_opt.disableWAL = true;
     write_opt.no_slowdown = false; //> enabling this will make some insertions fail
 
     int max_writes_failed = env.writes * 0.1;
@@ -436,8 +449,12 @@ std::pair<int, int> run_random_inserts(environment env,
     spdlog::debug("Flushing DB...");
     rocksdb::FlushOptions flush_opt;
     flush_opt.wait = true;
-    flush_opt.allow_write_stall = false;    /* set to default value */
-
+    flush_opt.allow_write_stall = true;
+    if(env.tuning == 0){
+        write_opt.low_pri = false;
+        write_opt.disableWAL = false;
+        flush_opt.allow_write_stall = false;
+    }
     db->Flush(flush_opt);
 
     spdlog::debug("Waiting for all remaining background compactions to finish before after writes");
