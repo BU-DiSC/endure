@@ -173,6 +173,15 @@ rocksdb::Status open_db(environment env,
             rocksdb_opt.max_open_files = -1;
 
         }
+    else{
+
+            rocksdb_opt.use_direct_reads = true;
+            rocksdb_opt.use_direct_io_for_flush_and_compaction = true;
+            rocksdb_opt.advise_random_on_open = false;
+            rocksdb_opt.random_access_max_buffer_size = 0;
+            rocksdb_opt.avoid_unnecessary_blocking_io = true;
+            rocksdb_opt.max_open_files = 512;
+    }
 //    if (fluid_opt->levels > 0)
 //    {
 //        table_options.filter_policy.reset(
@@ -454,6 +463,11 @@ std::pair<int, int> run_random_inserts(environment env,
         write_opt.low_pri = false;
         write_opt.disableWAL = false;
         flush_opt.allow_write_stall = false;
+    }
+    else{
+        write_opt.low_pri = true;
+        write_opt.disableWAL = true;
+        flush_opt.allow_write_stall = true;
     }
     db->Flush(flush_opt);
 
