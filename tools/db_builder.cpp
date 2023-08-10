@@ -163,6 +163,11 @@ void fill_fluid_opt(environment env, tmpdb::FluidOptions &fluid_opt)
         env.bits_per_element = 10;
 
     }
+    else{
+        env.T = 2;
+        env.B = 1 << 20;
+        env.bits_per_element = 5;
+    }
     fluid_opt.size_ratio = env.T;
     fluid_opt.largest_level_run_max = env.Z;
     fluid_opt.lower_level_run_max = env.K;
@@ -241,9 +246,14 @@ void build_db(environment & env)
 
     if(env.tuning == 0){
         spdlog::info("using default tuning - db builder rocksdb options");
-        rocksdb_opt.level0_file_num_compaction_trigger = 4;
+        rocksdb_opt.level0_file_num_compaction_trigger = -1;
         rocksdb_opt.max_bytes_for_level_multiplier = 4;
     }
+    else{
+        rocksdb_opt.level0_file_num_compaction_trigger = 4;
+        rocksdb_opt.max_bytes_for_level_multiplier = 1;
+    }
+
 //    if (env.L > 0)
 //    {
 //        table_options.filter_policy.reset(

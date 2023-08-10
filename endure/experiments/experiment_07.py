@@ -61,7 +61,6 @@ class Experiment07(object):
             design['default_bpe'] = default_design['M_filt'] / db_size
             design['default_is_leveling_policy'] = default_design['is_leveling_policy']
 
-            cf = CostFunction(**lsm_config, **expected_wls[wl_idx])
             nominal = NominalWorkloadTuning(cf)
             nominal_design = nominal.get_nominal_design()
             design['nominal_m_filt'] = nominal_design['M_filt']
@@ -244,11 +243,11 @@ class Experiment07(object):
                 del db
 
             tables.append(table)
-            self.de.export_csv_file(pd.concat(tables), 'experiment_03_checkpoint.csv')
+            self.de.export_csv_file(pd.concat(tables), 'experiment_07_checkpoint_default_config.csv')
         df = pd.concat(tables)
 
-        self.logger.info('Exporting data from experiment 03')
-        self.de.export_csv_file(df, 'experiment_03.csv')
-        self.logger.info('Finished experiment 03')
+        self.logger.info('Exporting data from experiment 07 with default configurations')
+        self.de.export_csv_file(df, 'experiment_07_default_config.csv')
+        self.logger.info('Finished experiment 07')
 
         return 0
