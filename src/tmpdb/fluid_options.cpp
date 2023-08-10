@@ -33,6 +33,7 @@ bool FluidOptions::read_config(std::string config_path)
     this->levels = cfg["levels"];
     this->fixed_file_size = cfg["fixed_file_size"];
     this->file_size_policy_opt = cfg["file_size_policy_opt"];
+    this->filter_policy = cfg["filter_policy"];
 
     return true;
 }
@@ -52,6 +53,7 @@ bool FluidOptions::write_config(std::string config_path)
     cfg["num_entries"] = this->num_entries;
     cfg["fixed_file_size"] = this->fixed_file_size;
     cfg["file_size_policy_opt"] = this->file_size_policy_opt;
+    cfg["filter_policy"] = this->filter_policy;
 
     std::ofstream out_cfg(config_path);
     if (!out_cfg.is_open())

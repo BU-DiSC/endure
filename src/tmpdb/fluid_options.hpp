@@ -32,6 +32,7 @@ public:
 
     size_t num_entries = 0;
     size_t levels = 0;
+    int filter_policy = 0;
 
     size_t file_size = std::numeric_limits<size_t>::max();
 

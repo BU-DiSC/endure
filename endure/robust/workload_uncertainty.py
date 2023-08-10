@@ -136,6 +136,7 @@ class WorkloadUncertainty(object):
         design['eta'] = sol.x[3]
         design['cost'] = cost
         design['obj'] = sol.fun
+        design['filter_policy'] = 2
         return design
 
     def get_robust_tiering_design(
@@ -199,4 +200,5 @@ class WorkloadUncertainty(object):
         design['eta'] = sol.x[3]
         design['cost'] = cost
         design['obj'] = sol.fun
+        design['filter_policy'] = 2
         return design

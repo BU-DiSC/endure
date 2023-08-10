@@ -18,6 +18,7 @@ spec = [
     ('z1', types.float64),
     ('q', types.float64),
     ('w', types.float64),
+    ('filter_policy', types.int64)
 ]
 
 BITS_IN_BYTES = 8
@@ -29,11 +30,12 @@ class CostFunction:
     This class defines the cost function of the LSM Tree
     """
 
-    def __init__(self, N, phi, s, B, E, M, is_leveling_policy, z0, z1, q, w):
+    def __init__(self, N, phi, s, B, E, M, is_leveling_policy, z0, z1, q, w,filter_policy):
         self.N, self.phi, self.s, = N, phi, s
         self.B, self.E, self.M = B, E, M
         self.is_leveling_policy = is_leveling_policy
         self.z0, self.z1, self.q, self.w = z0, z1, q, w
+        self.filter_policy = filter_policy
 
     def L(self, h, T, get_ceiling=True):
         mbuff = self.M - (h * self.N)
@@ -107,7 +109,7 @@ class CostFunction:
             w /= T
         return w
 
-    def calculate_cost(self, h, T, is_leveling_policy=None, B=None, E=None):
+    def calculate_cost(self, h, T, filter_policy=0, is_leveling_policy=None, B=None, E=None):
         if np.isnan(h):
             return np.iinfo(np.int64).max
         if np.isnan(T):
@@ -117,7 +119,7 @@ class CostFunction:
             self.is_leveling_policy = is_leveling_policy
         if E is not None:
             self.E = E
-
+        self.filter_policy = filter_policy
         cost = ((self.z0 * self.Z0(h, T))
                 + (self.z1 * self.Z1(h, T))
                 + (self.q * self.Q(h, T))

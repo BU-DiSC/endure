@@ -60,6 +60,7 @@ class RocksDB(object):
         db_settings['E'] = self.config['lsm_tree_config']['E']
         db_settings['M'] = self.config['lsm_tree_config']['M']
         db_settings['P'] = self.config['lsm_tree_config']['P']
+        db_settings['filter_policy'] = self.config['lsm_tree_config']['filter_policy']
         db_settings['is_leveling_policy'] = self.config['lsm_tree_config']['is_leveling_policy']
 
         # Defaults
@@ -75,7 +76,7 @@ class RocksDB(object):
 
         return l
 
-    def init_database(self, db_name, path_db, h, T, N, E, M, is_leveling_policy=True, destroy=True, bulk_stop_early=False, **kwargs):
+    def init_database(self, db_name, path_db, h, T, N, E, M, filter_policy=0, is_leveling_policy=True, destroy=True, bulk_stop_early=False, **kwargs):
         """[summary]
 
         :param db_name: database name
@@ -98,6 +99,7 @@ class RocksDB(object):
         self.E = (E >> 3) # Converts bits -> bytes
         self.is_leveling_policy = is_leveling_policy
         self.destroy = destroy
+        self.filter_policy= filter_policy
 
         os.makedirs(os.path.join(self.path_db, self.db_name), exist_ok=True)
 
@@ -109,12 +111,13 @@ class RocksDB(object):
         policy = 'Level' if is_leveling_policy else 'Tier'
         db_dir = os.path.join(self.path_db, self.db_name)
         self.logger.info('Creating DB {}'.format(self.db_name))
-        self.logger.info(f'T: {self.T}, bpe: {self.h:.2f}, policy: {policy}, mbuff: {mbuff}, E: {self.E}, N: {self.N}, M: {self.M}')
+        self.logger.info(f'T: {self.T}, filter_policy: {self.filter_policy}, bpe: {self.h:.2f}, policy: {policy}, mbuff: {mbuff}, E: {self.E}, N: {self.N}, M: {self.M}')
         cmd = [
             self.config['app']['BUILDER_PATH'],
             db_dir,
             '-d',
             '-T {}'.format(self.T),
+            '-filter_policy {}'.format(self.filter_policy),
             '-K {}'.format(self.K),
             '-Z {}'.format(self.Z),
             '-B {}'.format(mbuff),

@@ -46,6 +46,7 @@ class Experiment03(object):
             design['B'] = lsm_config['B']
             design['s'] = lsm_config['s']
             design['E'] = lsm_config['E']
+            design['filter_policy'] = lsm_config['filter_policy']
             design['M'] = lsm_config['M'] = ((bpe * lsm_config['N']) + buffer_min)
 
             cf = CostFunction(**lsm_config, **expected_wls[wl_idx])
@@ -54,6 +55,7 @@ class Experiment03(object):
             design['nominal_m_filt'] = nominal_design['M_filt']
             design['nominal_m_buff'] = nominal_design['M_buff']
             design['nominal_T'] = nominal_design['T']
+            design['nominal_filter_policy'] = nominal_design['filter_policy']
             design['nominal_cost'] = nominal_design['cost']
             design['nominal_bpe'] = nominal_design['M_filt'] / db_size
             design['nominal_is_leveling_policy'] = nominal_design['is_leveling_policy']
@@ -72,6 +74,7 @@ class Experiment03(object):
             design['robust_m_filt'] = robust_design['M_filt']
             design['robust_m_buff'] = robust_design['M_buff']
             design['robust_T'] = robust_design['T']
+            design['robust_filter_policy'] = robust_design['filter_policy']
             design['robust_cost'] = robust_design['cost']
             design['robust_is_leveling_policy'] = robust_design['is_leveling_policy']
             design['robust_bpe'] = robust_design['M_filt'] / db_size
@@ -134,7 +137,7 @@ class Experiment03(object):
             {'z0': 0.49, 'z1': 0.20, 'q': 0.20, 'w': 0.01},     # 16 - BONUS
         ]
         # wl_idxs = list(range(17))
-        wl_idxs = [15]
+        wl_idxs = [7]
         op_mask = (True, True, True, True)
         bpe = 10
         buffer_min = 1 * 1024 * 1024 * 8  # 1 MiB in bits
@@ -192,13 +195,14 @@ class Experiment03(object):
 
             for mode in ['nominal', 'robust']:
                 settings = {}
-                settings['db_name'] = 'exp03_db'
+                settings['db_name'] = 'exp03_db3'
                 settings['path_db'] = self.config['app']['DATABASE_PATH']
                 settings['N'] = design['N']
                 settings['M'] = design['M']
                 settings['E'] = design['E']
                 settings['T'] = design[f'{mode}_T']
                 settings['h'] = design[f'{mode}_bpe']
+                settings['filter_policy'] = design[f'{mode}_filter_policy']
                 settings['is_leveling_policy'] = design[f'{mode}_is_leveling_policy']
 
                 db = RocksDB(self.config)
