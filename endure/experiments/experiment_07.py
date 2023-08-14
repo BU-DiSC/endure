@@ -61,6 +61,14 @@ class Experiment07(object):
             design['default_bpe'] = default_design['M_filt'] / db_size
             design['default_is_leveling_policy'] = default_design['is_leveling_policy']
 
+            design['super_default_m_filt'] = default_design['M_filt']
+            design['super_default_m_buff'] = default_design['M_buff']
+            design['super_default_T'] = default_design['T']
+            design['super_default_filter_policy'] = default_design['filter_policy']
+            design['super_default_cost'] = default_design['cost']
+            design['super_default_bpe'] = default_design['M_filt'] / db_size
+            design['super_default_is_leveling_policy'] = default_design['is_leveling_policy']
+
             nominal = NominalWorkloadTuning(cf)
             nominal_design = nominal.get_nominal_design()
             design['nominal_m_filt'] = nominal_design['M_filt']
@@ -113,14 +121,19 @@ class Experiment07(object):
         session['session_id'] = 3
         sessions.append(session)
 
-        session = df[df.w_s > 0.8].sample(samples, replace=False, random_state=0)
-        # session = df[df.z0_s + df.z1_s > 0.8].sample(samples, replace=False, random_state=0)
+        if(not df[df.w_s > 0.8].empty):
+            session = df[df.w_s > 0.8].sample(samples, replace=False, random_state=0)
+        else:
+            session = df[df.z0_s + df.z1_s > 0.8].sample(samples, replace=False, random_state=0)
         session['session_id'] = 4
         sessions.append(session)
 
-        # session = df[df.z0_s + df.z1_s > 0.8].sample(samples, replace=False, random_state=0)
-        replace = len(df[df.dist < 0.2]) < samples
-        session = df[df.dist < 0.2].sample(samples, replace=replace, random_state=0)
+        if(not df[df.z0_s + df.z1_s > 0.8].empty):
+            session = df[df.z0_s + df.z1_s > 0.8].sample(samples, replace=False, random_state=0)
+        else:
+            replace = len(df[df.dist < 0.2]) < samples
+            session = df[df.dist < 0.2].sample(samples, replace=replace, random_state=0)
+
         session['session_id'] = 5
         sessions.append(session)
 
@@ -204,9 +217,9 @@ class Experiment07(object):
                 table.append(row)
             table = pd.DataFrame(table)
 
-            for i,mode in enumerate(['default', 'nominal', 'robust']):
+            for i,mode in enumerate(['default', 'nominal', 'robust', 'super_default']):
                 settings = {}
-                settings['db_name'] = 'exp03_db'
+                settings['db_name'] = 'exp07_db'
                 settings['path_db'] = self.config['app']['DATABASE_PATH']
                 settings['N'] = design['N']
                 settings['M'] = design['M']

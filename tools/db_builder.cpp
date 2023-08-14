@@ -12,6 +12,7 @@
 #include "rocksdb/filter_policy.h"
 #include "tmpdb/fluid_lsm_compactor.hpp"
 #include "infrastructure/bulk_loader.hpp"
+#include "infrastructure/default_bulk_loader.hpp"
 #include "infrastructure/data_generator.hpp"
 
 typedef struct environment
@@ -73,7 +74,7 @@ environment parse_args(int argc, char * argv[])
             (option("-filter_policy", "--filter_policy") & integer("filter_policy", env.filter_policy))
                 % ("Filter policies (0: Default, 1: New Bloom Filter Policy, 2: Monkey)"),
             (option("-tuning", "--tuning") & integer("tuning", env.tuning))
-                    % ("Tuning (0: Default, 1: Nominal, 2: Robust)"),
+                    % ("Tuning (0: Default, 1: Nominal, 2: Robust, 3: Super Default)"),
             (option("-K", "--lower_level_lim") & number("lim", env.K))
                 % ("lower levels file limit, [default: " + fmt::format("{:.0f}", env.K) + "]"),
             (option("-Z", "--last_level_lim") & number("lim", env.Z))
@@ -156,9 +157,9 @@ environment parse_args(int argc, char * argv[])
 
 void fill_fluid_opt(environment env, tmpdb::FluidOptions &fluid_opt)
 {
-    if (env.tuning == 0){
+    if (env.tuning == 0 || env.tuning == 3){
         spdlog::info("using default tuning - rocksdb fluid options");
-        env.T = 4;
+        env.T = 10;
         env.B = 64 << 20;
         env.bits_per_element = 10;
 
@@ -168,6 +169,7 @@ void fill_fluid_opt(environment env, tmpdb::FluidOptions &fluid_opt)
         env.B = 1 << 20;
         env.bits_per_element = 5;
     }
+
     fluid_opt.size_ratio = env.T;
     fluid_opt.largest_level_run_max = env.Z;
     fluid_opt.lower_level_run_max = env.K;
@@ -176,20 +178,24 @@ void fill_fluid_opt(environment env, tmpdb::FluidOptions &fluid_opt)
     fluid_opt.bits_per_element = env.bits_per_element;
     fluid_opt.bulk_load_opt = env.bulk_load_mode;
     fluid_opt.filter_policy = env.filter_policy;
-    if (fluid_opt.bulk_load_opt == tmpdb::bulk_load_type::ENTRIES)
-    {
-        fluid_opt.num_entries = env.N;
-        fluid_opt.levels = tmpdb::FluidLSMCompactor::estimate_levels(
-            env.N, env.T, env.E, env.B);
+    if(env.tuning !=3){
+        if (fluid_opt.bulk_load_opt == tmpdb::bulk_load_type::ENTRIES)
+        {
+            fluid_opt.num_entries = env.N;
+            fluid_opt.levels = tmpdb::FluidLSMCompactor::estimate_levels(
+                env.N, env.T, env.E, env.B);
+        }
+        else
+        {
+            fluid_opt.levels = env.L;
+            fluid_opt.num_entries = tmpdb::FluidLSMCompactor::calculate_full_tree(
+                env.T, env.E, env.B, env.L);
+        }
     }
-    else
-    {
-        fluid_opt.levels = env.L;
-        fluid_opt.num_entries = tmpdb::FluidLSMCompactor::calculate_full_tree(
-            env.T, env.E, env.B, env.L);
-    }
+
     fluid_opt.file_size_policy_opt = env.file_size_policy_opt;
     fluid_opt.fixed_file_size = env.fixed_file_size;
+
 }
 
 
@@ -200,6 +206,20 @@ void write_existing_keys(environment & env, FluidLSMBulkLoader * fluid_compactor
     
     spdlog::info("Writing out {} existing keys", fluid_compactor->keys.size());
     for (auto key : fluid_compactor->keys)
+    {
+        key_file << key << std::endl;
+    }
+
+    key_file.close();
+}
+
+void write_default_existing_keys(environment & env, DefaultBulkLoader * default_bulk_loader)
+{
+    std::ofstream key_file;
+    key_file.open(env.db_path + "/existing_keys.data");
+
+    spdlog::info("Writing out {} existing keys", default_bulk_loader->keys.size());
+    for (auto key : default_bulk_loader->keys)
     {
         key_file << key << std::endl;
     }
@@ -227,8 +247,8 @@ void build_db(environment & env)
     rocksdb_opt.num_levels = env.max_rocksdb_levels;
    // Prevents rocksdb from limiting file size
     rocksdb_opt.target_file_size_base = UINT64_MAX;
-
     fill_fluid_opt(env, fluid_opt);
+
     DataGenerator *gen;
     if (env.use_key_file)
     {
@@ -238,19 +258,30 @@ void build_db(environment & env)
     {
         gen = new RandomGenerator(env.seed);
     }
-    FluidLSMBulkLoader *fluid_compactor = new FluidLSMBulkLoader(
-            *gen, fluid_opt, rocksdb_opt, env.early_fill_stop);
-    rocksdb_opt.listeners.emplace_back(fluid_compactor);
-
-    rocksdb::BlockBasedTableOptions table_options;
-
-    if(env.tuning == 0){
-        spdlog::info("using default tuning - db builder rocksdb options");
-        rocksdb_opt.level0_file_num_compaction_trigger = -1;
-        rocksdb_opt.max_bytes_for_level_multiplier = 4;
+    FluidLSMBulkLoader *fluid_compactor = nullptr;
+    DefaultBulkLoader *default_bulk_loader = nullptr;
+    if (env.tuning !=3){
+        rocksdb_opt.compaction_style = rocksdb::kCompactionStyleNone;
+        FluidLSMBulkLoader *fluid_compactor = new FluidLSMBulkLoader(
+                *gen, fluid_opt, rocksdb_opt, env.early_fill_stop);
+        rocksdb_opt.listeners.emplace_back(fluid_compactor);
     }
     else{
-        rocksdb_opt.level0_file_num_compaction_trigger = 4;
+        rocksdb_opt.compaction_style = rocksdb::kCompactionStyleLevel;
+        DefaultBulkLoader *default_bulk_loader = new DefaultBulkLoader(*gen);
+
+    }
+
+
+
+
+    if(env.tuning == 0 || env.tuning ==3){
+        spdlog::info("using default tuning - db builder rocksdb options");
+        rocksdb_opt.level0_file_num_compaction_trigger = 10;
+        rocksdb_opt.max_bytes_for_level_multiplier = 10;
+    }
+    else{
+        rocksdb_opt.level0_file_num_compaction_trigger = -1;
         rocksdb_opt.max_bytes_for_level_multiplier = 1;
     }
 
@@ -272,6 +303,8 @@ void build_db(environment & env)
 //    }
 //    table_options.filter_policy = nullptr;
 
+    rocksdb::BlockBasedTableOptions table_options;
+    if (env.tuning != 3){
      if (env.filter_policy == 2){
         spdlog::info("using monkey policy");
         if (env.L > 0)
@@ -304,6 +337,11 @@ void build_db(environment & env)
         table_options.filter_policy = nullptr;
         spdlog::info("using default policy");
     }
+   }
+   else{
+        table_options.filter_policy = nullptr;
+        spdlog::info("using default policy");
+        }
 
     table_options.no_block_cache = true;
     rocksdb_opt.table_factory.reset(
@@ -319,13 +357,17 @@ void build_db(environment & env)
         exit(EXIT_FAILURE);
     }
 
-    if (env.bulk_load_mode == tmpdb::bulk_load_type::LEVELS)
+    if (env.bulk_load_mode == tmpdb::bulk_load_type::LEVELS && env.tuning!=3)
     {
         status = fluid_compactor->bulk_load_levels(db, env.L);
     }
-    else
+    else if(env.tuning!=3)
     {
         status = fluid_compactor->bulk_load_entries(db, env.N);
+    }
+    else
+    {
+        status = default_bulk_loader->default_bulk_loader(db,env.N,env.db_path);
     }
 
     if (!status.ok())
@@ -337,7 +379,9 @@ void build_db(environment & env)
 
     spdlog::info("Waiting for all compactions to finish before closing");
     // Wait for all compactions to finish before flushing and closing DB
-    while(fluid_compactor->compactions_left_count > 0);
+    if(env.tuning!=3){
+        while(fluid_compactor->compactions_left_count > 0);
+    }
 
     if (spdlog::get_level() <= spdlog::level::debug)
     {
@@ -359,9 +403,13 @@ void build_db(environment & env)
             level_idx++;
         }
     }
-
-    write_existing_keys(env, fluid_compactor);
-    fluid_opt.write_config(env.db_path + "/fluid_config.json");
+    if(env.tuning!=3){
+        write_existing_keys(env, fluid_compactor);
+        fluid_opt.write_config(env.db_path + "/fluid_config.json");
+    }
+    else{
+        write_default_existing_keys(env, default_bulk_loader);
+    }
 
     db->Close();
     delete db;

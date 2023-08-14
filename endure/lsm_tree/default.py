@@ -19,9 +19,9 @@ class DefaultWorkloadTuning(object):
 
 
     def get_default_design(self):
-        cost = self.cost_func.calculate_cost(10, 4)
+        cost = self.cost_func.calculate_cost(10, 10)
         design ={}
-        design['T'] = 4
+        design['T'] = 10
         design['M_h'] = 10
         design['M_filt'] = 100000000
         design['M_buff'] = 8589934592

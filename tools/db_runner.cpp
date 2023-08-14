@@ -79,7 +79,7 @@ environment parse_args(int argc, char * argv[])
         (option("-w", "--writes") & integer("num", env.writes))
             % ("empty queries, [default: " + to_string(env.writes) + "]"),
         (option("-tuning", "--tuning") & integer("tuning", env.tuning))
-            % ("Tuning (0: Default, 1: Nominal, 2: Robust)"),
+            % ("Tuning (0: Default, 1: Nominal, 2: Robust, 3: Super Default)"),
         (option("-o", "--output").set(env.write_out) & value("file", env.write_out_path))
             % ("optional write out all recorded times [default: off]"),
         (option("-p", "--prime").set(env.prime_db) & value("num", env.prime_reads))
@@ -129,7 +129,13 @@ rocksdb::Status open_db(environment env,
 
     rocksdb_opt.create_if_missing = true;
     rocksdb_opt.error_if_exists = false;
+    if (env.tuning!=3){
     rocksdb_opt.compaction_style = rocksdb::kCompactionStyleNone;
+    }
+    else{
+    rocksdb_opt.compaction_style = rocksdb::kCompactionStyleLevel;
+    fluid_compactor = nullptr;
+    }
     rocksdb_opt.compression = rocksdb::kNoCompression;
 
     rocksdb_opt.num_levels = env.rocksdb_max_levels;
@@ -159,11 +165,9 @@ rocksdb::Status open_db(environment env,
     rocksdb_opt.level0_slowdown_writes_trigger = 2 * (fluid_opt->lower_level_run_max + 1);
     rocksdb_opt.level0_stop_writes_trigger = 3 * (fluid_opt->lower_level_run_max + 1);
 
-    fluid_compactor = new tmpdb::FluidLSMCompactor(*fluid_opt, rocksdb_opt);
-    rocksdb_opt.listeners.emplace_back(fluid_compactor);
 
     rocksdb::BlockBasedTableOptions table_options;
-    if(env.tuning == 0){
+    if(env.tuning == 0 || env.tuning ==3){
             spdlog::info("using default tuning - db runner");
             rocksdb_opt.use_direct_reads = false;
             rocksdb_opt.use_direct_io_for_flush_and_compaction = false;
@@ -181,6 +185,13 @@ rocksdb::Status open_db(environment env,
             rocksdb_opt.random_access_max_buffer_size = 0;
             rocksdb_opt.avoid_unnecessary_blocking_io = true;
             rocksdb_opt.max_open_files = 512;
+    }
+    if(env.tuning!=3){
+        fluid_compactor = new tmpdb::FluidLSMCompactor(*fluid_opt, rocksdb_opt);
+            rocksdb_opt.listeners.emplace_back(fluid_compactor);
+    }
+    else{
+        fluid_compactor = nullptr;
     }
 //    if (fluid_opt->levels > 0)
 //    {
@@ -203,7 +214,7 @@ rocksdb::Status open_db(environment env,
 //                    fluid_opt->buffer_size) + 1));
 //    }
 //    table_options.filter_policy = nullptr;
-    if (fluid_opt->filter_policy==2)
+    if (env.tuning!=3 && fluid_opt->filter_policy==2)
         if (fluid_opt->levels > 0)
         {
             table_options.filter_policy.reset(
@@ -224,7 +235,7 @@ rocksdb::Status open_db(environment env,
                         fluid_opt->entry_size,
                         fluid_opt->buffer_size) + 1));
         }
-    else if(fluid_opt->filter_policy==1)
+    else if(env.tuning!=3 && fluid_opt->filter_policy==1)
     {
      table_options.filter_policy.reset(
                      rocksdb::NewBloomFilterPolicy(
@@ -429,6 +440,7 @@ std::pair<int, int> run_random_inserts(environment env,
     spdlog::debug("Writing {} key-value pairs", env.writes);
     KeyFileGenerator data_gen(env.key_file, fluid_opt->num_entries, env.writes, 0, env.dist_mode);
 
+
     auto start_write_time = std::chrono::high_resolution_clock::now();
     for (size_t write_idx = 0; write_idx < env.writes; write_idx++)
     {
@@ -471,6 +483,7 @@ std::pair<int, int> run_random_inserts(environment env,
     }
     db->Flush(flush_opt);
 
+    if(env.tuning!=3){
     spdlog::debug("Waiting for all remaining background compactions to finish before after writes");
     while(fluid_compactor->compactions_left_count > 0);
 
@@ -478,6 +491,7 @@ std::pair<int, int> run_random_inserts(environment env,
     while(fluid_compactor->requires_compaction(db))
     {
         while(fluid_compactor->compactions_left_count > 0);
+    }
     }
 
     auto remaining_compactions_end= std::chrono::high_resolution_clock::now();
