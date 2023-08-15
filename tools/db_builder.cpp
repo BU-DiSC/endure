@@ -258,17 +258,18 @@ void build_db(environment & env)
     {
         gen = new RandomGenerator(env.seed);
     }
+
     FluidLSMBulkLoader *fluid_compactor = nullptr;
     DefaultBulkLoader *default_bulk_loader = nullptr;
     if (env.tuning !=3){
         rocksdb_opt.compaction_style = rocksdb::kCompactionStyleNone;
-        FluidLSMBulkLoader *fluid_compactor = new FluidLSMBulkLoader(
+        fluid_compactor = new FluidLSMBulkLoader(
                 *gen, fluid_opt, rocksdb_opt, env.early_fill_stop);
         rocksdb_opt.listeners.emplace_back(fluid_compactor);
     }
     else{
         rocksdb_opt.compaction_style = rocksdb::kCompactionStyleLevel;
-        DefaultBulkLoader *default_bulk_loader = new DefaultBulkLoader(*gen);
+        default_bulk_loader = new DefaultBulkLoader(*gen);
 
     }
 
