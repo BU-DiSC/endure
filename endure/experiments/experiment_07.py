@@ -162,7 +162,7 @@ class Experiment07(object):
             {'z0': 0.49, 'z1': 0.20, 'q': 0.20, 'w': 0.01},     # 16 - BONUS
         ]
         # wl_idxs = list(range(17))
-        wl_idxs = [7]
+        wl_idxs = [7,11,15]
         op_mask = (True, True, True, True)
         bpe = 10
         buffer_min = 1 * 1024 * 1024 * 8  # 1 MiB in bits
