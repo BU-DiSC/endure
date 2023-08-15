@@ -61,13 +61,14 @@ class Experiment07(object):
             design['default_bpe'] = default_design['M_filt'] / db_size
             design['default_is_leveling_policy'] = default_design['is_leveling_policy']
 
-            design['super_default_m_filt'] = default_design['M_filt']
-            design['super_default_m_buff'] = default_design['M_buff']
-            design['super_default_T'] = default_design['T']
-            design['super_default_filter_policy'] = default_design['filter_policy']
-            design['super_default_cost'] = default_design['cost']
-            design['super_default_bpe'] = default_design['M_filt'] / db_size
-            design['super_default_is_leveling_policy'] = default_design['is_leveling_policy']
+            super_default_design = default.get_super_default_design()
+            design['super_default_m_filt'] = super_default_design['M_filt']
+            design['super_default_m_buff'] = super_default_design['M_buff']
+            design['super_default_T'] = super_default_design['T']
+            design['super_default_filter_policy'] = super_default_design['filter_policy']
+            design['super_default_cost'] = super_default_design['cost']
+            design['super_default_bpe'] = super_default_design['M_filt'] / db_size
+            design['super_default_is_leveling_policy'] = super_default_design['is_leveling_policy']
 
             nominal = NominalWorkloadTuning(cf)
             nominal_design = nominal.get_nominal_design()
@@ -217,7 +218,7 @@ class Experiment07(object):
                 table.append(row)
             table = pd.DataFrame(table)
 
-            for i,mode in enumerate(['default', 'nominal', 'robust', 'super_default']):
+            for i,mode in enumerate(['super_default']):
                 settings = {}
                 settings['db_name'] = 'exp07_db'
                 settings['path_db'] = self.config['app']['DATABASE_PATH']

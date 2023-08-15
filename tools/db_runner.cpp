@@ -235,7 +235,7 @@ rocksdb::Status open_db(environment env,
                         fluid_opt->entry_size,
                         fluid_opt->buffer_size) + 1));
         }
-    else if(env.tuning!=3 && fluid_opt->filter_policy==1)
+    else if(env.tuning==3 || fluid_opt->filter_policy==1)
     {
      table_options.filter_policy.reset(
                      rocksdb::NewBloomFilterPolicy(

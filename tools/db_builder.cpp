@@ -340,8 +340,11 @@ void build_db(environment & env)
     }
    }
    else{
-        table_options.filter_policy = nullptr;
-        spdlog::info("using default policy");
+        table_options.filter_policy.reset(
+                        rocksdb::NewBloomFilterPolicy(
+                            env.bits_per_element,
+                            false));
+        spdlog::info("using new bloom policy");
         }
 
     table_options.no_block_cache = true;
