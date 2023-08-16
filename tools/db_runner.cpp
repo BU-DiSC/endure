@@ -141,19 +141,25 @@ rocksdb::Status open_db(environment env,
     rocksdb_opt.max_open_files = env.max_open_files;
 
     // Disable and enable certain settings for closer to vanilla LSM 
-    if (env.default_on) {
-        rocksdb_opt.use_direct_reads = false;
-        rocksdb_opt.use_direct_io_for_flush_and_compaction = false;
-        rocksdb_opt.advise_random_on_open = true;
-        rocksdb_opt.random_access_max_buffer_size = 1024 * 1024;
-        rocksdb_opt.avoid_unnecessary_blocking_io = false;
-    } else {
-        rocksdb_opt.use_direct_reads = true;
-        rocksdb_opt.use_direct_io_for_flush_and_compaction = true;
-        rocksdb_opt.advise_random_on_open = false;
-        rocksdb_opt.random_access_max_buffer_size = 0;
-        rocksdb_opt.avoid_unnecessary_blocking_io = true;
-    }
+    rocksdb_opt.use_direct_reads = true;
+    rocksdb_opt.use_direct_io_for_flush_and_compaction = true;
+    rocksdb_opt.advise_random_on_open = false;
+    rocksdb_opt.random_access_max_buffer_size = 0;
+    rocksdb_opt.avoid_unnecessary_blocking_io = true;
+
+    // if (env.default_on) {
+    //     rocksdb_opt.use_direct_reads = false;
+    //     rocksdb_opt.use_direct_io_for_flush_and_compaction = false;
+    //     rocksdb_opt.advise_random_on_open = true;
+    //     rocksdb_opt.random_access_max_buffer_size = 1024 * 1024;
+    //     rocksdb_opt.avoid_unnecessary_blocking_io = false;
+    // } else {
+    //     rocksdb_opt.use_direct_reads = true;
+    //     rocksdb_opt.use_direct_io_for_flush_and_compaction = true;
+    //     rocksdb_opt.advise_random_on_open = false;
+    //     rocksdb_opt.random_access_max_buffer_size = 0;
+    //     rocksdb_opt.avoid_unnecessary_blocking_io = true;
+    // }
 
     // Prevent rocksdb from limiting file size as we manage it ourselves
     rocksdb_opt.target_file_size_base = UINT64_MAX;

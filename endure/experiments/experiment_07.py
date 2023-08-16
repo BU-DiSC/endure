@@ -203,7 +203,7 @@ class Experiment07(object):
             for _, wl in sessions[wl_idx].iterrows():
                 row = deepcopy(design)
                 row['sample_idx'] = wl['sample_idx']
-                row['num_queries'] = (design['N'] * 0.005)
+                row['num_queries'] = (design['N'] * 0.02)
                 row['z0_s'] = wl['z0_s']
                 row['z1_s'] = wl['z1_s']
                 row['q_s'] = wl['q_s']
@@ -257,7 +257,7 @@ class Experiment07(object):
         df = pd.concat(tables)
 
         self.logger.info('Exporting data from experiment 03')
-        self.de.export_csv_file(df, 'experiment_03_writes.csv')
+        self.de.export_csv_file(df, 'experiment_03_writes_default.csv')
         self.logger.info('Finished experiment 03')
 
         return 0
