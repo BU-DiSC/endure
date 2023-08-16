@@ -14,7 +14,7 @@ class RocksDB(object):
     """
     Python API for RocksDB
     """
-    def __init__(self, config):
+    def __init__(self, config, default=False):
         """
         Constructor
 
@@ -51,6 +51,7 @@ class RocksDB(object):
             r'(\[[0-9,\s]+\])'
         )
         self.existing_keys_prog = re.compile(r'\[[0-9:.]+\]\[info\] Writing out ([0-9]+) existing keys')
+        self.default = default
 
     def options_from_config(self):
         db_settings = {}
@@ -126,6 +127,8 @@ class RocksDB(object):
         ]
         if bulk_stop_early:
             cmd += ['--early_fill_stop']
+        if self.default:
+            cmd += ['--default']
         cmd = ' '.join(cmd)
         self.logger.debug(f'{cmd}')
 
@@ -191,8 +194,10 @@ class RocksDB(object):
             f'-p {prime}',
             '--parallelism {}'.format(THREADS),
             '--key-file {}'.format(self.config['app']['KEY_FILE_PATH']),
-            '--dist zipf'
+            '--dist {}'.format(self.config["app"]["dist"])
         ]
+        if self.default:
+            cmd += ['--default']
         cmd = ' '.join(cmd)
         self.logger.debug(f'{cmd}')
 

@@ -48,6 +48,7 @@ typedef struct environment
 
     std::string key_file = "uniform";
     bool use_key_file = false;
+    bool default_on = false;
 
     std::string dist_mode;
 } environment;
@@ -93,7 +94,9 @@ environment parse_args(int argc, char * argv[])
         (option("--dist") & value("mode", env.dist_mode))
             % ("distribution mode ['uniform', 'zipf']"),
         (option("--key-file").set(env.use_key_file, true) & value("file", env.key_file))
-            % "use keyfile to speed up bulk loading"
+            % "use keyfile to speed up bulk loading",
+        (option("--default").set(env.default_on, true))
+            % "run default mode"
     );
 
     auto cli = (
@@ -135,14 +138,22 @@ rocksdb::Status open_db(environment env,
 
     rocksdb_opt.write_buffer_size = fluid_opt->buffer_size; //> "Level 0" or the in memory buffer
     rocksdb_opt.num_levels = env.rocksdb_max_levels;
+    rocksdb_opt.max_open_files = env.max_open_files;
 
     // Disable and enable certain settings for closer to vanilla LSM 
-    rocksdb_opt.use_direct_reads = true;
-    rocksdb_opt.use_direct_io_for_flush_and_compaction = true;
-    rocksdb_opt.max_open_files = env.max_open_files;
-    rocksdb_opt.advise_random_on_open = false;
-    rocksdb_opt.random_access_max_buffer_size = 0;
-    rocksdb_opt.avoid_unnecessary_blocking_io = true;
+    if (env.default_on) {
+        rocksdb_opt.use_direct_reads = false;
+        rocksdb_opt.use_direct_io_for_flush_and_compaction = false;
+        rocksdb_opt.advise_random_on_open = true;
+        rocksdb_opt.random_access_max_buffer_size = 1024 * 1024;
+        rocksdb_opt.avoid_unnecessary_blocking_io = false;
+    } else {
+        rocksdb_opt.use_direct_reads = true;
+        rocksdb_opt.use_direct_io_for_flush_and_compaction = true;
+        rocksdb_opt.advise_random_on_open = false;
+        rocksdb_opt.random_access_max_buffer_size = 0;
+        rocksdb_opt.avoid_unnecessary_blocking_io = true;
+    }
 
     // Prevent rocksdb from limiting file size as we manage it ourselves
     rocksdb_opt.target_file_size_base = UINT64_MAX;
@@ -161,16 +172,15 @@ rocksdb::Status open_db(environment env,
     rocksdb_opt.listeners.emplace_back(fluid_compactor);
 
     rocksdb::BlockBasedTableOptions table_options;
-    if (fluid_opt->levels > 0)
-    {
+    if (env.default_on) {
+        table_options.filter_policy.reset(rocksdb::NewBloomFilterPolicy(10));
+    } else if (fluid_opt->levels > 0) {
         table_options.filter_policy.reset(
             rocksdb::NewMonkeyFilterPolicy(
                 fluid_opt->bits_per_element,
                 fluid_opt->size_ratio,
                 fluid_opt->levels + 1));
-    }
-    else
-    {
+    } else {
         table_options.filter_policy.reset(
             rocksdb::NewMonkeyFilterPolicy(
                 fluid_opt->bits_per_element,

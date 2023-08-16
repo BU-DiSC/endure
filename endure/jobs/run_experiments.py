@@ -7,6 +7,7 @@ from experiments.experiment_02 import Experiment02
 from experiments.experiment_03 import Experiment03
 from experiments.experiment_04 import Experiment04
 from experiments.experiment_05 import Experiment05
+from experiments.experiment_07 import Experiment07
 
 
 class ExperimentDriver(object):
@@ -44,6 +45,9 @@ class ExperimentDriver(object):
                 expt.run()
             if expt_name == "experiment_05":
                 expt = Experiment05(self.config)
+                expt.run()
+            if expt_name == "experiment_07":
+                expt = Experiment07(self.config)
                 expt.run()
 
         self.logger.info("Finished experiments")

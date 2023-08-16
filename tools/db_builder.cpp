@@ -40,6 +40,7 @@ typedef struct environment
     uint64_t fixed_file_size = std::numeric_limits<uint64_t>::max();
 
     bool early_fill_stop = false;
+    bool default_on = false;
 
     std::string key_file;
     bool use_key_file = false;
@@ -101,7 +102,9 @@ environment parse_args(int argc, char * argv[])
             (option("--early_fill_stop").set(env.early_fill_stop, true))
                 % "Stops bulk loading early if N is met [default: False]",
             (option("--key-file").set(env.use_key_file, true) & value("file", env.key_file))
-                % "use keyfile to speed up bulk loading"
+                % "use keyfile to speed up bulk loading",
+            (option("--default").set(env.default_on, true))
+                % "default rocksdb on"
         )
     );
 
@@ -224,8 +227,9 @@ void build_db(environment & env)
     rocksdb_opt.listeners.emplace_back(fluid_compactor);
 
     rocksdb::BlockBasedTableOptions table_options;
-    if (env.L > 0)
-    {
+    if (env.default_on) {
+        table_options.filter_policy.reset(rocksdb::NewBloomFilterPolicy(10));
+    } else if (env.L > 0) {
         table_options.filter_policy.reset(
             rocksdb::NewMonkeyFilterPolicy(
                 env.bits_per_element,

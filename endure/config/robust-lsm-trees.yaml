@@ -10,6 +10,8 @@ app:
     DATABASE_PATH: "/scratchNVM0/ndhuynh/tmp"
     KEY_FILE_PATH: "/scratchNVM0/ndhuynh/data/keys.data"
 
+    dist: 'uniform' # key distribution for workloads
+
 lsm_tree_config: 
     N: 10000000
     phi: 1
@@ -115,9 +117,10 @@ experiments:
     expt_list:
         # - "experiment_01"
         # - "experiment_02"
-        - "experiment_03"
+        # - "experiment_03"
         # - "experiment_04"
         # - "experiment_05"
+        - "experiment_07"
 
 experiment_01:
 

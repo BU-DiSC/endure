@@ -1,5 +1,5 @@
 """
-Experiment 03
+Experiment 07
 Writes and Reads hybrid experiment on PyRocksDB
 
 """
@@ -20,13 +20,25 @@ from lsm_tree.nominal import NominalWorkloadTuning
 from lsm_tree.cost_function import CostFunction
 
 
-class Experiment03(object):
+class Experiment07(object):
 
     def __init__(self, config):
         self.config = config
         self.logger = logging.getLogger('rlt_logger')
         self.dp = DataProvider(config)
         self.de = DataExporter(config)
+
+    def default_tuning(self, cf):
+        cost = cf.calculate_cost(10, 10)
+        design = {}
+        design['T'] = 10
+        design['M_h'] = 10
+        design['M_filt'] = 100_000_000
+        design['M_buff'] = 8589934592
+        design['is_leveling_policy'] = True
+        design['cost'] = cost
+
+        return design
 
     def create_tunings(self, wl_idxs, wl_rhos, expected_wls,
                        db_size, bpe, buffer_min):
@@ -49,6 +61,14 @@ class Experiment03(object):
             design['M'] = lsm_config['M'] = ((bpe * lsm_config['N']) + buffer_min)
 
             cf = CostFunction(**lsm_config, **expected_wls[wl_idx])
+            default_design = self.default_tuning(cf)
+            design['default_m_filt'] = default_design['M_filt']
+            design['default_m_buff'] = default_design['M_buff']
+            design['default_T'] = default_design['T']
+            design['default_cost'] = default_design['cost']
+            design['default_bpe'] = default_design['M_filt'] / db_size
+            design['default_is_leveling_policy'] = default_design['is_leveling_policy']
+
             nominal = NominalWorkloadTuning(cf)
             nominal_design = nominal.get_nominal_design()
             design['nominal_m_filt'] = nominal_design['M_filt']
@@ -75,13 +95,12 @@ class Experiment03(object):
             design['robust_cost'] = robust_design['cost']
             design['robust_is_leveling_policy'] = robust_design['is_leveling_policy']
             design['robust_bpe'] = robust_design['M_filt'] / db_size
-
             # Append the design to the dataframe
             tunings.append(deepcopy(design))
 
         return tunings
 
-    def create_sessions(self, df, samples):
+    def create_sessions(self, df, samples, writes=False):
         sessions = []
         session = df[df.z0_s + df.z1_s > 0.8].sample(samples, replace=False, random_state=0)
         session['session_id'] = 0
@@ -99,14 +118,18 @@ class Experiment03(object):
         session['session_id'] = 3
         sessions.append(session)
 
-        session = df[df.w_s > 0.8].sample(samples, replace=False, random_state=0)
-        # session = df[df.z0_s + df.z1_s > 0.8].sample(samples, replace=False, random_state=0)
+        if writes:
+            session = df[df.w_s > 0.8].sample(samples, replace=False, random_state=0)
+        else:
+            session = df[df.z0_s + df.z1_s > 0.8].sample(samples, replace=False, random_state=0)
         session['session_id'] = 4
         sessions.append(session)
 
-        # session = df[df.z0_s + df.z1_s > 0.8].sample(samples, replace=False, random_state=0)
-        replace = len(df[df.dist < 0.2]) < samples
-        session = df[df.dist < 0.2].sample(samples, replace=replace, random_state=0)
+        if writes:
+            replace = len(df[df.dist < 0.2]) < samples
+            session = df[df.dist < 0.2].sample(samples, replace=replace, random_state=0)
+        else:
+            session = df[df.z0_s + df.z1_s > 0.8].sample(samples, replace=False, random_state=0)
         session['session_id'] = 5
         sessions.append(session)
 
@@ -134,7 +157,7 @@ class Experiment03(object):
             {'z0': 0.49, 'z1': 0.20, 'q': 0.20, 'w': 0.01},     # 16 - BONUS
         ]
         # wl_idxs = list(range(17))
-        wl_idxs = [11]
+        wl_idxs = [7, 11, 15]
         op_mask = (True, True, True, True)
         bpe = 10
         buffer_min = 1 * 1024 * 1024 * 8  # 1 MiB in bits
@@ -180,7 +203,7 @@ class Experiment03(object):
             for _, wl in sessions[wl_idx].iterrows():
                 row = deepcopy(design)
                 row['sample_idx'] = wl['sample_idx']
-                row['num_queries'] = (design['N'] * 0.01)
+                row['num_queries'] = (design['N'] * 0.005)
                 row['z0_s'] = wl['z0_s']
                 row['z1_s'] = wl['z1_s']
                 row['q_s'] = wl['q_s']
@@ -190,7 +213,7 @@ class Experiment03(object):
                 table.append(row)
             table = pd.DataFrame(table)
 
-            for mode in ['nominal', 'robust']:
+            for mode in ['nominal', 'robust', 'default']:
                 settings = {}
                 settings['db_name'] = 'exp03_db'
                 settings['path_db'] = self.config['app']['DATABASE_PATH']
@@ -201,7 +224,10 @@ class Experiment03(object):
                 settings['h'] = design[f'{mode}_bpe']
                 settings['is_leveling_policy'] = design[f'{mode}_is_leveling_policy']
 
-                db = RocksDB(self.config)
+                if mode == 'default':
+                    db = RocksDB(self.config, default=True)
+                else:
+                    db = RocksDB(self.config, default=False)
                 _ = db.init_database(**settings)
 
                 measured_performance = []
@@ -216,7 +242,7 @@ class Experiment03(object):
                         f' : ({z0}, {z1}, {q}, {w})'
                     )
 
-                    results = db.run(z0, z1, q, w, prime=row['num_queries']/2)
+                    results = db.run(z0, z1, q, w, prime=0)
                     named_results = {}
                     for key, val in results.items():
                         named_results[f'{mode}_{key}'] = val
@@ -231,7 +257,7 @@ class Experiment03(object):
         df = pd.concat(tables)
 
         self.logger.info('Exporting data from experiment 03')
-        self.de.export_csv_file(df, 'experiment_03_wl11_writes.csv')
+        self.de.export_csv_file(df, 'experiment_03_writes.csv')
         self.logger.info('Finished experiment 03')
 
         return 0
