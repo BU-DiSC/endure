@@ -214,7 +214,7 @@ rocksdb::Status open_db(environment env,
 //                    fluid_opt->buffer_size) + 1));
 //    }
 //    table_options.filter_policy = nullptr;
-    if (env.tuning!=3 && fluid_opt->filter_policy==2)
+    if (env.tuning!=3 && fluid_opt->filter_policy==2){
         if (fluid_opt->levels > 0)
         {
             table_options.filter_policy.reset(
@@ -234,6 +234,7 @@ rocksdb::Status open_db(environment env,
                         fluid_opt->size_ratio,
                         fluid_opt->entry_size,
                         fluid_opt->buffer_size) + 1));
+        }
         }
     else if(env.tuning==3 || fluid_opt->filter_policy==1)
     {
