@@ -139,27 +139,26 @@ rocksdb::Status open_db(environment env,
     rocksdb_opt.write_buffer_size = fluid_opt->buffer_size; //> "Level 0" or the in memory buffer
     rocksdb_opt.num_levels = env.rocksdb_max_levels;
     rocksdb_opt.max_open_files = env.max_open_files;
+    rocksdb_opt.random_access_max_buffer_size = 0;
 
     // Disable and enable certain settings for closer to vanilla LSM 
-    rocksdb_opt.use_direct_reads = true;
-    rocksdb_opt.use_direct_io_for_flush_and_compaction = true;
-    rocksdb_opt.advise_random_on_open = false;
-    rocksdb_opt.random_access_max_buffer_size = 0;
-    rocksdb_opt.avoid_unnecessary_blocking_io = true;
+    // rocksdb_opt.use_direct_reads = true;
+    // rocksdb_opt.use_direct_io_for_flush_and_compaction = true;
+    // rocksdb_opt.advise_random_on_open = false;
+    // rocksdb_opt.random_access_max_buffer_size = 0;
+    // rocksdb_opt.avoid_unnecessary_blocking_io = true;
 
-    // if (env.default_on) {
-    //     rocksdb_opt.use_direct_reads = false;
-    //     rocksdb_opt.use_direct_io_for_flush_and_compaction = false;
-    //     rocksdb_opt.advise_random_on_open = true;
-    //     rocksdb_opt.random_access_max_buffer_size = 1024 * 1024;
-    //     rocksdb_opt.avoid_unnecessary_blocking_io = false;
-    // } else {
-    //     rocksdb_opt.use_direct_reads = true;
-    //     rocksdb_opt.use_direct_io_for_flush_and_compaction = true;
-    //     rocksdb_opt.advise_random_on_open = false;
-    //     rocksdb_opt.random_access_max_buffer_size = 0;
-    //     rocksdb_opt.avoid_unnecessary_blocking_io = true;
-    // }
+    if (env.default_on) {
+        rocksdb_opt.use_direct_reads = false;
+        rocksdb_opt.use_direct_io_for_flush_and_compaction = false;
+        rocksdb_opt.advise_random_on_open = true;
+        rocksdb_opt.avoid_unnecessary_blocking_io = false;
+    } else {
+        rocksdb_opt.use_direct_reads = true;
+        rocksdb_opt.use_direct_io_for_flush_and_compaction = true;
+        rocksdb_opt.advise_random_on_open = false;
+        rocksdb_opt.avoid_unnecessary_blocking_io = true;
+    }
 
     // Prevent rocksdb from limiting file size as we manage it ourselves
     rocksdb_opt.target_file_size_base = UINT64_MAX;
@@ -171,8 +170,8 @@ rocksdb::Status open_db(environment env,
     // Number of files in level 0 to slow down writes. Since we're prioritizing
     // compactions we will wait for those to finish up first by slowing down the
     // write speed
-    rocksdb_opt.level0_slowdown_writes_trigger = 2 * (fluid_opt->lower_level_run_max + 1);
-    rocksdb_opt.level0_stop_writes_trigger = 3 * (fluid_opt->lower_level_run_max + 1);
+    rocksdb_opt.level0_slowdown_writes_trigger = static_cast<int>(1.5 * fluid_opt->size_ratio);
+    rocksdb_opt.level0_stop_writes_trigger = 2 * fluid_opt->lower_level_run_max;
 
     fluid_compactor = new tmpdb::FluidLSMCompactor(*fluid_opt, rocksdb_opt);
     rocksdb_opt.listeners.emplace_back(fluid_compactor);
@@ -383,6 +382,7 @@ std::pair<int, int> run_random_inserts(environment env,
     write_opt.sync = false;
     write_opt.low_pri = true; //> every insert is less important than compaction
     write_opt.disableWAL = true; 
+    write_opt.ignore_missing_column_families = true;
     write_opt.no_slowdown = false; //> enabling this will make some insertions fail
 
     int max_writes_failed = env.writes * 0.1;
@@ -525,6 +525,22 @@ int main(int argc, char * argv[])
     if (env.prime_db)
     {
         prime_database(env, db);
+    }
+
+    spdlog::debug("Check if DB needs flushing...");
+    rocksdb::FlushOptions flush_opt;
+    flush_opt.wait = true;
+    flush_opt.allow_write_stall = true;
+
+    db->Flush(flush_opt);
+
+    spdlog::debug("Waiting for all remaining background compactions to finish before after writes");
+    while(fluid_compactor->compactions_left_count > 0);
+
+    spdlog::debug("Checking final state of the tree and if it requires any compactions...");
+    while(fluid_compactor->requires_compaction(db))
+    {
+        while(fluid_compactor->compactions_left_count > 0);
     }
 
     int empty_read_duration = 0, read_duration = 0, range_duration = 0;

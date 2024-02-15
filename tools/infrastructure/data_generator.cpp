@@ -67,10 +67,12 @@ KeyFileGenerator::KeyFileGenerator(std::string key_file, int offset, int num_key
     this->read_file(key_file, offset, num_keys);
     if (mode == "uniform")
     {
+        spdlog::debug("Uniform distribution");
         this->dist_existing = new Uniform(offset);
         this->dist_new = new Uniform(num_keys);
     }
     else {
+        spdlog::debug("Zipf distribution");
         this->dist_existing = new Zipf(offset);
         this->dist_new = new Zipf(num_keys);
     }
